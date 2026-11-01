@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.13.0")]
+[assembly: AssemblyVersion("0.1.15.0")]
 
 namespace Doorstop
 {
@@ -168,6 +168,7 @@ namespace SolastaCoop
         private readonly TravelShare travelShare = new TravelShare();
         private readonly LootShare lootShare = new LootShare();
         private readonly PartyAutoFollow autoFollow = new PartyAutoFollow();
+        private readonly AutoFastTravelVote autoFastTravelVote = new AutoFastTravelVote();
         private static volatile bool gameCharacterMappingError;
         private string networkMessage = "Выберите транспорт следующего подключения.";
 
@@ -183,6 +184,7 @@ namespace SolastaCoop
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
             observerHud.SetEnabled(true);
             lootShare.SetEnabled(true);
+            autoFastTravelVote.Install();
             try { diagnostics.Start(); }
             catch (Exception e) { Log.Error("core", "Start diagnostics", e); }
             Log.Write("CoopView " + BuildInfo.Version + " ready; F7=range, F8=panel, F9=verbose, F10=report.");
@@ -196,6 +198,7 @@ namespace SolastaCoop
             travelShare.Dispose();
             lootShare.Dispose();
             autoFollow.SetEnabled(false);
+            autoFastTravelVote.Dispose();
             ConnectionRetry.Cancel("Игра закрыта.");
             CameraZoom.RestoreAll();
             Log.Write("Overlay destroyed.");
@@ -253,7 +256,8 @@ namespace SolastaCoop
         private void Update()
         {
             CameraZoom.Tick();
-            autoFollow.Tick();
+            autoFastTravelVote.Tick();
+            if (!autoFastTravelVote.VotePending) autoFollow.Tick();
             ConnectionRetry.Tick();
             travelShare.Tick();
             lootShare.Tick();
@@ -430,7 +434,7 @@ namespace SolastaCoop
                 GUI.enabled = previous && ready;
                 string label = autoFollow.Enabled ? "Автоходьба: ВКЛ" : "Автоходьба: ВЫКЛ";
                 if (GUI.Button(rect, label))
-                    autoFollow.SetEnabled(!autoFollow.Enabled, selectedCharacter);
+                    autoFollow.SetEnabled(!autoFollow.Enabled);
             }
             catch (Exception ex)
             {
@@ -564,6 +568,13 @@ namespace SolastaCoop
             GUILayout.Label(travelShare.Status, textStyle);
             GUILayout.Label("Новая версия нужна хосту и клиентам. Во время карты и подготовки путешествия передаётся изображение только игрового окна, до 1280×720 и 1 кадра/с. Клики не передаются. Файлы изображений не сохраняются.", textStyle);
             if (GUILayout.Button("Показать / скрыть просмотр [F6]")) travelShare.TogglePreview();
+            GUILayout.Space(12);
+            GUILayout.Label("Голосования за быстрое перемещение", titleStyle);
+            bool acceptFastTravel = GUILayout.Toggle(autoFastTravelVote.Enabled,
+                "Автоматически нажимать «Принять» при отправке к точке маршрута");
+            if (acceptFastTravel != autoFastTravelVote.Enabled)
+                autoFastTravelVote.SetEnabled(acceptFastTravel);
+            GUILayout.Label(autoFastTravelVote.Status + "\nОстальные виды голосований и подтверждений не затрагиваются.", textStyle);
         }
 
         private void DrawLoot()
@@ -618,8 +629,12 @@ namespace SolastaCoop
             GUILayout.Label("Автоходьба персонажей", titleStyle);
             bool next = GUILayout.Toggle(autoFollow.Enabled,
                 "Мои персонажи следуют за героем тиммейта (автоходьба)");
-            if (next != autoFollow.Enabled) autoFollow.SetEnabled(next, selectedCharacter);
+            if (next != autoFollow.Enabled) autoFollow.SetEnabled(next);
             GUILayout.Label(autoFollow.Status + "\nТолько в исследовании, только мои герои. Отключайте перед сюжетными сценами.", textStyle);
+            if (GUILayout.Button("Выбирать ведущего автоматически по движению"))
+                autoFollow.SelectAutomaticLeader();
+            GUILayout.Label("Чтобы следовать за конкретным героем тиммейта, выберите его имя в верхней части F8. "+
+                "Если несколько чужих героев, режим авто выбирает того, кто сейчас идёт.", textStyle);
         }
 
         private void DrawCamera()
