@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.16.0")]
+[assembly: AssemblyVersion("0.1.17.0")]
 
 namespace Doorstop
 {
@@ -583,13 +583,13 @@ namespace SolastaCoop
 
         private void DrawLoot()
         {
-            GUILayout.Label("Нативное окно игры, НЕ трансляция экрана. Включено по умолчанию, тестовая версия.", textStyle);
-            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Синхронизировать штатный интерфейс сундуков и трупов");
+            GUILayout.Label("Общий интерактивный лут: настоящее окно Solasta, без трансляции экрана. Тестовая версия.", textStyle);
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Общий интерактивный лут сундуков и трупов");
             if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
             GUILayout.Label(lootShare.Status, textStyle);
             GUILayout.Label("Второму игроку открывается локальное штатное окно. " +
-                "Действия с предметами из удалённого окна заблокированы. F11 отключён.", textStyle);
-            if (GUILayout.Button("Закрыть полученное окно")) lootShare.ClosePreview();
+                "Второй игрок может забирать предметы своим героем. Для общего сундука отключена проверка дальности в UI; серверные проверки игры сохраняются. F11 отключён.", textStyle);
+            if (GUILayout.Button("Закрыть общее окно лута")) lootShare.ClosePreview();
             GUILayout.Label(lootShare.Diagnostics, textStyle);
         }
 
