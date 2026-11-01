@@ -175,6 +175,7 @@ namespace SolastaCoop
             Instance = this;
             Application.logMessageReceivedThreaded += UnityLog;
             DetailedTooltips.SetEnabled(true);
+            CameraZoom.SetFactor(1.4f);
             try { ConnectionRetry.Install(); }
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
             observerHud.SetEnabled(true);
