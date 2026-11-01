@@ -39,3 +39,7 @@ Unity assemblies supplied with the user's game.
 ## Version 0.1.10
 
 - Update native per-version loader log filenames from 0.1.9 to 0.1.10.
+
+## Version 0.1.11
+
+- Updated native loader log filenames to 0.1.11 to match the managed code if rebuilt. This archive is source-only and does not include a rebuilt native binary.

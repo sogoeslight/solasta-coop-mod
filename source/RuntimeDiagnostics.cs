@@ -27,6 +27,7 @@ namespace SolastaCoop
         internal string ReportMessage { get { return reportMessage; } }
         internal string HudStatus = "Observer HUD disabled.";
         internal string TravelStatus = "Travel sharing not sampled yet.";
+        internal string LootStatus = "Loot mirror not sampled yet.";
 
         internal RuntimeDiagnostics()
         {
@@ -140,9 +141,32 @@ namespace SolastaCoop
                 object battle = Read.Get(Read.Type("Gui"), "Battle");
                 object characters = Read.Service("IGameLocationCharacterService");
                 object cursor = Read.Get(Read.Service("ICursorService"), "CurrentCursor");
+                object active = Read.Get(battle, "ActiveContender");
+                object stateObject = Read.Get(Read.Get(battle, "FiniteStateMachine"), "CurrentState");
+                object controller = battle == null ? null : Read.Get(Read.Type("Gui"), "ActivePlayerController");
+                object activeRuleset = Read.Get(active, "RulesetCharacter");
+                string ownsActive = "?";
+                if (active != null && controller != null)
+                {
+                    try { ownsActive = Read.Text(Read.Call(controller, "IsCharacterControlled", active)); }
+                    catch (Exception e) { ownsActive = "error:" + e.GetBaseException().GetType().Name; }
+                }
                 string game = "battle=" + (battle != null) + "; round=" + Value(battle, "CurrentRound") +
                     "; partyCount=" + Read.Items(Read.Get(characters, "PartyCharacters")).Count() +
-                    "; cursor=" + (cursor == null ? "none" : cursor.GetType().Name);
+                    "; cursor=" + (cursor == null ? "none" : cursor.GetType().Name) +
+                    "; activeGuid=" + Value(activeRuleset, "Guid") +
+                    "; activeName=" + (active == null ? "?" : Read.Name(active)) +
+                    "; activeLocGuid=" + Value(active, "Guid") +
+                    "; ownerHere=" + ownsActive +
+                    "; fsm=" + (stateObject == null ? "none" : stateObject.GetType().Name);
+                if (battle != null && (force || game != lastGame || now >= nextGameSample))
+                {
+                    var roster = Read.Items(Read.Get(characters, "PartyCharacters"))
+                        .Select(p => Read.Name(p) + "=" + Value(Read.Get(p, "RulesetCharacter"), "Guid") +
+                            "(loc=" + Value(p, "Guid") + ",local=" +
+                            (controller == null ? "?" : Read.Text(Read.Call(controller, "IsCharacterControlled", p))) + ")");
+                    Log.Write("Battle ownership snapshot; " + String.Join("; ", roster.ToArray()));
+                }
                 if (force || game != lastGame || (Log.Verbose && now >= nextGameSample))
                 {
                     Log.Write("Game context; " + game);
@@ -312,6 +336,7 @@ namespace SolastaCoop
                 text.AppendLine("\nSESSION ERRORS (memory, retained after log deletion)\n" + Log.Writer.ReadFailures());
                 text.AppendLine("\nCONNECTION RETRIES\n" + ConnectionRetry.Enabled + "; " + ConnectionRetry.Status);
                 text.AppendLine("\nTRAVEL VIEW\n" + TravelStatus);
+                text.AppendLine("\nLOOT VIEW\n" + LootStatus);
                 text.AppendLine("\nCURRENT RANGE\n" + LatestRange);
                 text.AppendLine("\nOBSERVER HUD\n" + HudStatus);
                 text.AppendLine("\nDETAILED TOOLTIPS\n" + DetailedTooltips.DiagnosticSummary);

@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.10.0")]
+[assembly: AssemblyVersion("0.1.11.0")]
 
 namespace Doorstop
 {
@@ -165,6 +165,8 @@ namespace SolastaCoop
         private readonly RuntimeDiagnostics diagnostics = new RuntimeDiagnostics();
         private readonly ObserverHud observerHud = new ObserverHud();
         private readonly TravelShare travelShare = new TravelShare();
+        private readonly LootShare lootShare = new LootShare();
+        private static volatile bool gameCharacterMappingError;
         private string networkMessage = "Выберите транспорт следующего подключения.";
 
         private void Awake()
@@ -187,6 +189,7 @@ namespace SolastaCoop
             diagnostics.Dispose();
             observerHud.Dispose();
             travelShare.Dispose();
+            lootShare.Dispose();
             ConnectionRetry.Cancel("Игра закрыта.");
             CameraZoom.RestoreAll();
             Log.Write("Overlay destroyed.");
@@ -201,12 +204,24 @@ namespace SolastaCoop
             bool related = lower.Contains("photon") || lower.Contains("socket") || lower.Contains("network") ||
                 lower.Contains("disconnect") || lower.Contains("timeout") || lower.Contains("coopview") || lower.Contains("doorstop");
             if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
+                {
+                if (lower.Contains("couldn't recover character used in action")) gameCharacterMappingError = true;
                 Log.UnityMessage("ERROR", condition, stack);
+            }
             else if (type == LogType.Warning && related) Log.UnityMessage("WARN", condition, stack);
             else if (Log.Verbose && related) Log.UnityMessage("DEBUG", condition, "");
         }
         private void LateUpdate()
         {
+            if (gameCharacterMappingError)
+            {
+                gameCharacterMappingError = false;
+                if (observerHud.Enabled)
+                {
+                    observerHud.SetEnabled(false);
+                    Log.Event("core", "WARN", "Game character action mapping failed: observer HUD disabled as a precaution. Reload a host save to recover battle state.");
+                }
+            }
             observerHud.Tick();
             diagnostics.HudStatus = observerHud.DiagnosticSummary;
             if (Input.GetKeyDown(KeyCode.F7)) SetRangeEnabled(!showHoverRange);
@@ -234,9 +249,14 @@ namespace SolastaCoop
             CameraZoom.Tick();
             ConnectionRetry.Tick();
             travelShare.Tick();
+            lootShare.Tick();
             if (travelShare.ShouldCapture) StartCoroutine(travelShare.Capture());
+            if (lootShare.ShouldCapture && !travelShare.ShouldCapture) StartCoroutine(lootShare.Capture());
+            if (Input.GetKeyDown(KeyCode.F11)) lootShare.ToggleManual();
+            if (Input.GetKeyDown(KeyCode.F12)) lootShare.TogglePreview();
             if (Input.GetKeyDown(KeyCode.F6)) travelShare.TogglePreview();
             diagnostics.TravelStatus = travelShare.DiagnosticSummary;
+            diagnostics.LootStatus = lootShare.Diagnostics;
             if (Input.GetKeyDown(KeyCode.F8)) SetVisible(!visible);
             if (Input.GetKeyDown(KeyCode.F9)) diagnostics.SetVerbose(!Log.Verbose);
             if (Input.GetKeyDown(KeyCode.F10)) diagnostics.SaveReport();
@@ -377,8 +397,9 @@ namespace SolastaCoop
         }
         private void OnGUI()
         {
-            if (TravelShare.Capturing) return;
+            if (TravelShare.Capturing || LootShare.Capturing) return;
             travelShare.Draw();
+            lootShare.Draw();
             if (textStyle == null)
             {
                 textStyle = new GUIStyle(GUI.skin.label) { wordWrap = true, fontSize = 14, richText = false };
@@ -414,13 +435,14 @@ namespace SolastaCoop
                 int next = GUILayout.SelectionGrid(selected, party.Select(Read.Name).ToArray(), Math.Min(3, party.Count));
                 if (next != selected) { selected = next; follow = false; details = ""; nextRefresh = 0; }
             }
-            int newTab = GUILayout.Toolbar(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь" });
+            int newTab = GUILayout.Toolbar(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут" });
             if (newTab != tab) { tab = newTab; details = ""; scroll = Vector2.zero; }
             if (!String.IsNullOrEmpty(error)) GUILayout.Label("Ошибка чтения: " + error, textStyle);
             if (tab == 3) DrawNetwork();
             else if (tab == 4) DrawDiagnostics();
             else if (tab == 5) DrawCamera();
             else if (tab == 6) DrawTravel();
+            else if (tab == 7) DrawLoot();
             else
             {
                 GUILayout.Label("Только просмотр. Список не учитывает все условия применения.", textStyle);
@@ -511,6 +533,21 @@ namespace SolastaCoop
             if (GUILayout.Button("Показать / скрыть просмотр [F6]")) travelShare.TogglePreview();
         }
 
+        private void DrawLoot()
+        {
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Показывать лут союзнику автоматически (только просмотр)");
+            if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
+            bool detect = GUILayout.Toggle(lootShare.AutoDetect, "Автоматическое распознавание окна лута");
+            lootShare.AutoDetect = detect;
+            GUILayout.Label(lootShare.Status, textStyle);
+            GUILayout.Label("Когда один участник открывает сундук, тело или контейнер, второму передаётся изображение игрового окна. " +
+                "Управление предметами остаётся исключительно у открывшего игрока. " +
+                "Распознавание зависит от конкретного интерфейса игры; F11 запускает и останавливает показ вручную.", textStyle);
+            if (GUILayout.Button("Начать / закончить показ текущего окна [F11]")) lootShare.ToggleManual();
+            if (GUILayout.Button("Показать / скрыть полученное окно [F12]")) lootShare.TogglePreview();
+            GUILayout.Label(lootShare.Diagnostics, textStyle);
+        }
+
         private void DrawDiagnostics()
         {
             bool verbose = GUILayout.Toggle(Log.Verbose, "Подробные логи [F9]");
@@ -529,7 +566,7 @@ namespace SolastaCoop
             if (Log.Writer.FailedWrites > 0) GUILayout.Label("Ошибки записи логов: " + Log.Writer.FailedWrites +
                 "\n" + Log.Writer.LastError, textStyle);
             GUILayout.Label(diagnostics.ReportMessage, textStyle);
-            GUILayout.Label(observerHud.Status, textStyle);
+            GUILayout.Label(observerHud.Status + "\n" + lootShare.Diagnostics, textStyle);
             GUILayout.Label(DetailedTooltips.Status, textStyle);
             GUILayout.Label("Сеть\n" + diagnostics.LatestNetwork + "\n\nДальность\n" + diagnostics.LatestRange +
                 "\n\n" + diagnostics.Checks, textStyle);
