@@ -1,0 +1,26 @@
+# Compiler output, generated native loader and reports
+/build/
+/validation.txt
+*.log
+*.tmp
+*.bak
+*.bak.dll
+*.pdb
+*.obj
+*.ilk
+*.exp
+*.lib
+*.exe
+*.pyc
+__pycache__/
+.vs/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+# Do not publish proprietary Solasta assemblies or copied game data
+Managed/
+Solasta_Data/
+Assembly-CSharp.dll
+# Windows-injection DLLs are build products, not source
+winhttp.dll

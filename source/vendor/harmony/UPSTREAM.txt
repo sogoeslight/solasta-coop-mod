@@ -1,0 +1,6 @@
+Harmony 2.0.2.0, Andreas Pardeike
+https://github.com/pardeike/Harmony/tree/v2.0.2.0
+Binary source: public SolastaUnfinishedBusiness reference files, Solasta_Data/Managed/UnityModManager/0Harmony.dll
+License: MIT, see LICENSE
+SHA256: 92af03f489490b5e7a79a5d05e0c055dbd47fc3fb72302d41f661de996762181
+Loaded for expanded tooltips, observer HUD or camera adjustment when Harmony 2 is not already loaded.

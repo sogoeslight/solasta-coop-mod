@@ -1,0 +1,54 @@
+using System;
+using System.Reflection;
+
+namespace SolastaCoop
+{
+    internal sealed class PhotonTransport
+    {
+        private object capturedSettings;
+        private object originalProtocol;
+        private bool originalFallback;
+
+        internal string Change(object settings, string state, bool connected, bool restore)
+        {
+            if (settings == null)
+                throw new InvalidOperationException("Настройки Photon пока недоступны.");
+            FieldInfo protocol = settings.GetType().GetField("Protocol");
+            FieldInfo fallback = settings.GetType().GetField("EnableProtocolFallback");
+            if (protocol == null || !protocol.FieldType.IsEnum || fallback == null || fallback.FieldType != typeof(bool))
+                throw new InvalidOperationException("Эта версия настроек Photon не поддерживается.");
+            object tcp = Enum.Parse(protocol.FieldType, "Tcp");
+            if (capturedSettings != null && !ReferenceEquals(settings, capturedSettings))
+                throw new InvalidOperationException("Объект настроек сменился. Перезапустите игру перед изменением транспорта.");
+            if (restore && capturedSettings == null)
+                return "Исходные настройки ещё не изменялись.";
+
+            object beforeProtocol = protocol.GetValue(settings);
+            bool beforeFallback = (bool)fallback.GetValue(settings);
+            object nextProtocol = restore ? originalProtocol : tcp;
+            bool nextFallback = restore ? originalFallback : false;
+            try
+            {
+                protocol.SetValue(settings, nextProtocol);
+                fallback.SetValue(settings, nextFallback);
+            }
+            catch
+            {
+                protocol.SetValue(settings, beforeProtocol);
+                fallback.SetValue(settings, beforeFallback);
+                throw;
+            }
+            if (capturedSettings == null)
+            {
+                capturedSettings = settings;
+                originalProtocol = beforeProtocol;
+                originalFallback = beforeFallback;
+            }
+            return "Следующее подключение: " + nextProtocol + "; автоматический переход на другой протокол: " +
+                (nextFallback ? "включён" : "выключен") + "." +
+                (connected || (state != "PeerCreated" && state != "Disconnected")
+                    ? " Текущее подключение не изменено. Полностью выйдите из мультиплеера и подключитесь заново без перезапуска игры."
+                    : " Подключитесь обычным способом.");
+        }
+    }
+}

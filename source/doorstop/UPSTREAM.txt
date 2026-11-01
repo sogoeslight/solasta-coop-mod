@@ -1,0 +1,3 @@
+https://github.com/NeighTools/UnityDoorstop
+Commit: 1c3ece1f1e6c20f4aa74d5402baabf8a0098d282
+Modified for an embedded Solasta Coop View payload.
