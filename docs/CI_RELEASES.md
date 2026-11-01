@@ -71,7 +71,7 @@ The workflow downloads the private asset with its ephemeral `GITHUB_TOKEN`. You 
 
 Open [Actions → Windows build and release](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml), click **Run workflow** on `main`, and leave **version** blank.
 
-On success, download the artifact named `solasta-coop-mod-windows-x64`. It contains `winhttp.dll`, a release ZIP, and `SHA256SUMS.txt`. Artifacts have 30-day retention.
+On success, download the artifact named `solasta-coop-mod-windows-x64`. It contains **only `winhttp.dll`**. GitHub Actions packages artifacts as a downloadable archive, but the build does not generate a second mod ZIP or checksums. Artifacts have 30-day retention.
 
 ## Publish a version
 
@@ -86,13 +86,13 @@ git tag v0.1.19
 git push origin v0.1.19
 ```
 
-A successful tag-triggered build creates a GitHub prerelease and uploads `winhttp.dll`, `solasta-coop-mod-v0.1.19-win-x64.zip` and `SHA256SUMS.txt`. Existing release assets are never overwritten.
+A successful tag-triggered build creates a GitHub prerelease and uploads **only `winhttp.dll`**. Existing release assets are never overwritten.
 
 ## Limitations and troubleshooting
 
 - Static source checks cannot verify compilation or actual co-op behavior.
 - A failing C# or GCC build blocks release publication; inspect the Action run logs.
 - `ci-build-refs` must be a private draft release containing exactly `SolastaManagedRefs.zip`.
-- If the game version changes, update the reference archive.
+- After Solasta updates, compare the installed managed DLLs against the archived compilation references. If `Assembly-CSharp.dll` or any referenced Unity/system DLL has changed, rebuild `SolastaManagedRefs.zip`, replace the private draft asset with `gh release upload ci-build-refs $zip --repo sogoeslight/solasta-coop-mod --clobber`, and rebuild the mod. Resource-only updates generally do not require refreshing compilation references. Changes to game APIs may also require updating the mod's C# code, and compilation alone does not guarantee compatibility.
 - Do not commit or distribute Solasta-managed game DLLs.
 - This is an experimental project. Keep backups of your game saves and test both clients on the same build.
