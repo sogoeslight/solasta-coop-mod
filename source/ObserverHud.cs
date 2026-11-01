@@ -19,7 +19,7 @@ namespace SolastaCoop
         internal bool Active { get { return borrowed; } }
         internal string LastFailure = "none";
 
-        internal ObserverHud() { Status = "Штатная панель союзника выключена."; }
+        internal ObserverHud() { Status = "Native teammate panel disabled."; }
 
         private void SetStatus(string text)
         {
@@ -33,21 +33,21 @@ namespace SolastaCoop
             {
                 Enabled = false;
                 Dispose();
-                SetStatus("Штатная панель союзника выключена.");
+                SetStatus("Native teammate panel disabled.");
                 return;
             }
             try
             {
                 EnsureHooks();
                 Enabled = true;
-                SetStatus("Ожидание хода союзника. Штатная панель работает только для просмотра.");
+                SetStatus("Waiting for a teammate turn. Native panel is read-only.");
             }
             catch (Exception e)
             {
                 Enabled = false;
                 Dispose();
                 Log.Error("core", "Enable observer HUD", e);
-                SetStatus("Панель не включена: " + e.GetBaseException().Message);
+                SetStatus("Panel could not be enabled: " + e.GetBaseException().Message);
             }
         }
 
@@ -88,12 +88,12 @@ namespace SolastaCoop
                 // Never evaluate it before a loaded battle and an active actor exist.
                 if (nextActor == null)
                 {
-                    Dispose(); SetStatus("Ожидание боя и действующего союзника."); return;
+                    Dispose(); SetStatus("Waiting for combat and an active teammate."); return;
                 }
                 object controller = Read.Get(gui, "ActivePlayerController");
                 if (controller == null)
                 {
-                    Dispose(); SetStatus("Ожидание боя и действующего союзника."); return;
+                    Dispose(); SetStatus("Waiting for combat and an active teammate."); return;
                 }
                 object owned = Read.Call(controller, "IsCharacterControlled", nextActor);
                 object state = Read.Get(Read.Get(battle, "FiniteStateMachine"), "CurrentState");
@@ -107,13 +107,13 @@ namespace SolastaCoop
                 if (!eligible)
                 {
                     Dispose();
-                    SetStatus("Ожидание хода союзника. Свой ход, ход врага и переходы не изменяются.");
+                    SetStatus("Waiting for a teammate turn. Your turn, enemy turns, and transitions remain unchanged.");
                     return;
                 }
                 object service = Read.Get(gui, "GuiService");
                 if (Object.Equals(Read.Get(service, "GrabbedCameraControls"), true))
                 {
-                    Dispose(); SetStatus("Открыт модальный интерфейс игры. Просмотр ожидает."); return;
+                    Dispose(); SetStatus("A native game modal is open. Preview is waiting."); return;
                 }
                 Type screenType = Read.Type("GameLocationScreenBattle");
                 object screen = screenType == null ? null : Read.Call(service, "GetScreen", screenType);
@@ -122,7 +122,7 @@ namespace SolastaCoop
                     Object.Equals(Read.Get(nextPanel, "Loaded"), true) && !Object.Equals(Read.Get(nextPanel, "Hiding"), true);
                 if (!available)
                 {
-                    Dispose(); SetStatus("Штатный боевой интерфейс пока недоступен."); return;
+                    Dispose(); SetStatus("Native combat UI is not available yet."); return;
                 }
                 if (borrowed && (!ReferenceEquals(nextPanel, panel) || !Read.Same(actor, nextActor) ||
                     !Read.Same(Read.Get(Read.Get(panel, "GuiCharacter"), "GameLocationCharacter"), actor))) Dispose();
@@ -131,12 +131,12 @@ namespace SolastaCoop
                     // A visible HUD can belong to a reaction or another UI flow. Leave it alone.
                     if (Object.Equals(Read.Get(nextPanel, "Visible"), true))
                     {
-                        SetStatus("Штатная панель уже используется игрой. Просмотр ожидает."); return;
+                        SetStatus("Native panel is currently used by the game. Preview is waiting."); return;
                     }
                     object group = Read.Get(nextPanel, "CanvasGroup");
                     object interactable = Read.Get(group, "interactable"), raycasts = Read.Get(group, "blocksRaycasts");
                     if (!(interactable is bool) || !(raycasts is bool))
-                        throw new InvalidOperationException("Нет CanvasGroup для блокировки управления.");
+                        throw new InvalidOperationException("CanvasGroup required to disable interactions was not found.");
                     panel = nextPanel; actor = nextActor; canvas = group;
                     oldInteractable = (bool)interactable; oldBlocksRaycasts = (bool)raycasts;
                     borrowed = true; current = this;
@@ -147,7 +147,7 @@ namespace SolastaCoop
                     Invoke(panel, "Show", true);
                     EnforceReadOnly();
                     nextRefresh = DateTime.MinValue;
-                    SetStatus("Просмотр союзника: нажмите Заклинания/Способности основного или бонусного действия. Каст заблокирован.");
+                    SetStatus("Teammate preview: open main or bonus action Spells/Abilities. Casting is blocked.");
                 }
                 EnforceReadOnly();
                 if (DateTime.UtcNow >= nextRefresh)
@@ -163,7 +163,7 @@ namespace SolastaCoop
                 Dispose();
                 LastFailure = e.GetBaseException().ToString();
                 Log.Error("core", "Observer HUD disabled after failure", e);
-                SetStatus("Просмотр отключён после ошибки: " + e.GetBaseException().Message);
+                SetStatus("Preview disabled after error: " + e.GetBaseException().Message);
             }
         }
 

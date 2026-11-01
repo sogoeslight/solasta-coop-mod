@@ -151,7 +151,7 @@ namespace SolastaCoop
         private int tab, selected;
         private float nextRefresh;
         private Vector2 scroll;
-        private string heading = "Загрузите сохранение или начните игру.", error = "", details = "";
+        private string heading = "Load a save or start a new game.", error = "", details = "";
         private object selectedCharacter;
         private List<object> party = new List<object>();
         private readonly List<Row>[] rows = { new List<Row>(), new List<Row>(), new List<Row>() };
@@ -171,7 +171,7 @@ namespace SolastaCoop
         private HostMoveShare hostMoveShare;
         private readonly AutoFastTravelVote autoFastTravelVote = new AutoFastTravelVote();
         private static volatile bool gameCharacterMappingError;
-        private string networkMessage = "Выберите транспорт следующего подключения.";
+        private string networkMessage = "Choose the transport for the next connection.";
 
         private void Awake()
         {
@@ -202,7 +202,7 @@ namespace SolastaCoop
             autoFollow.SetEnabled(false);
             if (hostMoveShare != null) hostMoveShare.Dispose();
             autoFastTravelVote.Dispose();
-            ConnectionRetry.Cancel("Игра закрыта.");
+            ConnectionRetry.Cancel("Game closed.");
             CameraZoom.RestoreAll();
             CombatSpeed.RestoreAll();
             Log.Write("Overlay destroyed.");
@@ -301,7 +301,7 @@ namespace SolastaCoop
             party = Read.Items(Read.Get(service, "PartyCharacters")).ToList();
             if (party.Count == 0)
             {
-                heading = "Загрузите сохранение или начните игру.";
+                heading = "Load a save or start a new game.";
                 selectedCharacter = null;
                 foreach (List<Row> list in rows) list.Clear();
                 return;
@@ -316,9 +316,9 @@ namespace SolastaCoop
             selectedCharacter = party[selected];
             object ruleset = Read.Get(selectedCharacter, "RulesetCharacter");
             bool isActive = Read.Same(active, selectedCharacter);
-            heading = Read.Name(selectedCharacter) + (isActive ? "  [сейчас ходит]" : "");
+            heading = Read.Name(selectedCharacter) + (isActive ? "  [active turn]" : "");
             heading += "\nHP: " + Read.Text(Read.Get(ruleset, "CurrentHitPoints")) +
-                "    временные HP: " + Read.Text(Read.Get(ruleset, "TemporaryHitPoints"));
+                "    temporary HP: " + Read.Text(Read.Get(ruleset, "TemporaryHitPoints"));
             foreach (List<Row> list in rows) list.Clear();
             BuildActions(selectedCharacter, ruleset);
             BuildSpells(ruleset);
@@ -347,18 +347,18 @@ namespace SolastaCoop
                     object definition = definitions[args[0]];
                     string label = Read.Title(definition);
                     rows[0].Add(new Row(label + "  [" + Read.Text(status) + "]",
-                        Read.Description(definition) + "\n\nСтатус из локальной копии игры. " +
-                        "Выбор цели и все ограничения не проверяются этой панелью."));
+                        Read.Description(definition) + "\n\nStatus from your local game state. " +
+                        "This panel does not validate targeting or all usage restrictions."));
                 }
             }
             foreach (object attack in Read.Items(Read.Get(ruleset, "AttackModes")))
             {
                 object source = Read.Get(attack, "SourceDefinition");
-                string title = source == null ? "Атака" : Read.Title(source);
+                string title = source == null ? "Attack" : Read.Title(source);
                 rows[0].Add(new Row(title + "  [" + Read.Text(Read.Get(attack, "ActionType")) + "]",
-                    "Бонус попадания: " + Read.Text(Read.Get(attack, "ToHitBonus")) +
-                    "\nАтак: " + Read.Text(Read.Get(attack, "AttacksNumber")) +
-                    "\nБлижняя / предельная дистанция: " + Read.Text(Read.Get(attack, "CloseRange")) +
+                    "Attack bonus: " + Read.Text(Read.Get(attack, "ToHitBonus")) +
+                    "\nAttacks: " + Read.Text(Read.Get(attack, "AttacksNumber")) +
+                    "\nClose / maximum range: " + Read.Text(Read.Get(attack, "CloseRange")) +
                     " / " + Read.Text(Read.Get(attack, "MaxRange"))));
             }
         }
@@ -374,11 +374,11 @@ namespace SolastaCoop
                     object ready = Convert.ToInt32(Read.Get(spell, "SpellLevel") ?? 0) == 0 ||
                         Read.Items(Read.Get(repertoire, "AutoPreparedSpells")).Contains(spell)
                         ? (object)true : Read.Call(repertoire, "IsSpellReady", spell);
-                    string state = ready is bool && !(bool)ready ? " [не подготовлено]" : "";
+                    string state = ready is bool && !(bool)ready ? " [not prepared]" : "";
                     string title = Read.Title(spell) + " [" + Read.Text(Read.Get(spell, "SpellLevel")) + "]" + state;
-                    string body = Read.Description(spell) + "\n\nВремя: " + Read.Text(Read.Get(spell, "CastingTime")) +
-                        "\nБонус заклинаний: " + Read.Text(Read.Get(repertoire, "SpellAttackBonus")) +
-                        "; СЛ: " + Read.Text(Read.Get(repertoire, "SaveDC"));
+                    string body = Read.Description(spell) + "\n\nCasting time: " + Read.Text(Read.Get(spell, "CastingTime")) +
+                        "\nSpell attack bonus: " + Read.Text(Read.Get(repertoire, "SpellAttackBonus")) +
+                        "; save DC: " + Read.Text(Read.Get(repertoire, "SaveDC"));
                     rows[1].Add(new Row(title, body));
                 }
                 MethodInfo slots = repertoire.GetType().GetMethod("GetSlotsNumber");
@@ -391,8 +391,8 @@ namespace SolastaCoop
                         slots.Invoke(repertoire, args);
                         if (Convert.ToInt32(args[2]) > 0) summary.Add(level + ": " + args[1] + "/" + args[2]);
                     }
-                    if (summary.Count > 0) rows[1].Insert(0, new Row("Ячейки: " + String.Join("; ", summary.ToArray()),
-                        "Круг: оставшиеся / максимум. Данные локальной копии игры."));
+                    if (summary.Count > 0) rows[1].Insert(0, new Row("Slots: " + String.Join("; ", summary.ToArray()),
+                        "Spell level: remaining / maximum. Data from the local game state."));
                 }
             }
         }
@@ -406,7 +406,7 @@ namespace SolastaCoop
                 if (Read.Get(presentation, "Hidden") is bool && (bool)Read.Get(presentation, "Hidden")) continue;
                 rows[2].Add(new Row(Read.Title(definition) + " [" + Read.Text(Read.Get(power, "RemainingUses")) +
                     "/" + Read.Text(Read.Get(power, "MaxUses")) + "]",
-                    Read.Description(definition) + "\n\nТип: " + Read.Text(Read.Get(definition, "ActivationTime"))));
+                    Read.Description(definition) + "\n\nActivation: " + Read.Text(Read.Get(definition, "ActivationTime"))));
             }
         }
         private void OnGUI()
@@ -438,7 +438,7 @@ namespace SolastaCoop
                 Rect rect = new Rect(Math.Max(8, Screen.width - 238), 14, 228, 34);
                 bool ready = Read.Get(Read.Type("Gui"), "Battle") == null;
                 GUI.enabled = previous && ready;
-                string label = autoFollow.Enabled ? "Автоходьба: ВКЛ" : "Автоходьба: ВЫКЛ";
+                string label = autoFollow.Enabled ? "Auto-follow: ON" : "Auto-follow: OFF";
                 if (GUI.Button(rect, label))
                     autoFollow.SetEnabled(!autoFollow.Enabled);
             }
@@ -457,16 +457,16 @@ namespace SolastaCoop
         {
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
-            bool newFollow = GUILayout.Toggle(follow, "Следить за ходом союзника");
+            bool newFollow = GUILayout.Toggle(follow, "Follow teammate turns");
             if (newFollow != follow) { follow = newFollow; Log.Write("Follow active ally=" + follow); }
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Скрыть", GUILayout.Width(70))) SetVisible(false);
+            if (GUILayout.Button("Hide", GUILayout.Width(70))) SetVisible(false);
             GUILayout.EndHorizontal();
-            bool nativeHud = GUILayout.Toggle(observerHud.Enabled, "Штатная панель союзника (только просмотр)");
+            bool nativeHud = GUILayout.Toggle(observerHud.Enabled, "Native teammate action panel (read-only)");
             if (nativeHud != observerHud.Enabled) observerHud.SetEnabled(nativeHud);
-            bool expanded = GUILayout.Toggle(DetailedTooltips.Enabled, "Всегда подробные тултипы (как с Alt)");
+            bool expanded = GUILayout.Toggle(DetailedTooltips.Enabled, "Always show detailed tooltips (as with Alt)");
             if (expanded != DetailedTooltips.Enabled) DetailedTooltips.SetEnabled(expanded);
-            SetRangeEnabled(GUILayout.Toggle(showHoverRange, "Дальность заклинания / атаки при наведении [F7]"));
+            SetRangeEnabled(GUILayout.Toggle(showHoverRange, "Show spell / attack range on hover [F7]"));
             GUILayout.Label(heading, titleStyle);
             if (party.Count > 0)
             {
@@ -477,9 +477,9 @@ namespace SolastaCoop
                     autoFollow.SelectTarget(party[selected]);
                 }
             }
-            int newTab = GUILayout.SelectionGrid(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут", "Обмен", "Бой" }, 5);
+            int newTab = GUILayout.SelectionGrid(tab, new[] { "Actions", "Spells", "Abilities", "Network", "Logs", "Camera", "Travel", "Loot", "Transfer", "Combat" }, 5);
             if (newTab != tab) { tab = newTab; details = ""; scroll = Vector2.zero; }
-            if (!String.IsNullOrEmpty(error)) GUILayout.Label("Ошибка чтения: " + error, textStyle);
+            if (!String.IsNullOrEmpty(error)) GUILayout.Label("Read error: " + error, textStyle);
             if (tab == 3) DrawNetwork();
             else if (tab == 4) DrawDiagnostics();
             else if (tab == 5) DrawCamera();
@@ -489,11 +489,11 @@ namespace SolastaCoop
             else if (tab == 9) DrawCombatSpeed();
             else
             {
-                GUILayout.Label("Только просмотр. Список не учитывает все условия применения.", textStyle);
+                GUILayout.Label("Read-only preview. Not all usage conditions are evaluated.", textStyle);
                 scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(Math.Max(80, window.height - 420)));
                 foreach (Row row in rows[tab])
                     if (GUILayout.Button(row.Title)) details = row.Details;
-                if (rows[tab].Count == 0) GUILayout.Label("Данные пока отсутствуют.", textStyle);
+                if (rows[tab].Count == 0) GUILayout.Label("No data available yet.", textStyle);
                 GUILayout.EndScrollView();
                 GUILayout.Label(details, textStyle, GUILayout.MaxHeight(110));
             }
@@ -513,41 +513,41 @@ namespace SolastaCoop
                 object settings = Read.Get(Read.Get(photon, "PhotonServerSettings"), "AppSettings");
                 string state = Read.Text(Read.Get(photon, "NetworkClientState"));
                 bool connected = Read.Get(photon, "IsConnected") is bool && (bool)Read.Get(photon, "IsConnected");
-                GUILayout.Label("Состояние Photon: " + state +
-                    "\nРегион: " + Read.Text(Read.Get(photon, "CloudRegion")) +
-                    "\nТранспорт клиента сейчас: " + Read.Text(Read.Get(peer, "TransportProtocol")) +
-                    "\nРеальное состояние клиента: " + Read.Text(Read.Get(client, "State")) +
+                GUILayout.Label("Photon state: " + state +
+                    "\nRegion: " + Read.Text(Read.Get(photon, "CloudRegion")) +
+                    "\nCurrent client transport: " + Read.Text(Read.Get(peer, "TransportProtocol")) +
+                    "\nActual client state: " + Read.Text(Read.Get(client, "State")) +
                     "; offline=" + Read.Text(Read.Get(photon, "OfflineMode")) +
-                    "\nТаймаут: " + Read.Text(Read.Get(peer, "DisconnectTimeout")) + " мс" +
-                    "\nНастройка следующего подключения: " + Read.Text(Read.Get(settings, "Protocol")), textStyle);
-                GUILayout.Label("Выбор действует при следующем подключении к Photon. Если уже подключены, " +
-                    "полностью выйдите из мультиплеера и зайдите заново без перезапуска игры. " +
-                    "Создание комнаты в существующем подключении не меняет транспорт.", textStyle);
+                    "\nTimeout: " + Read.Text(Read.Get(peer, "DisconnectTimeout")) + " ms" +
+                    "\nTransport for next connection: " + Read.Text(Read.Get(settings, "Protocol")), textStyle);
+                GUILayout.Label("The selection takes effect on the next Photon connection. If already connected, " +
+                    "leave multiplayer completely and reconnect without restarting the game. " +
+                    "Creating a room on an existing connection does not change transport.", textStyle);
                 bool previous = GUI.enabled;
                 try
                 {
                     GUI.enabled = previous && settings != null;
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("TCP при следующем подключении")) ChangeProtocol(settings, state, connected, false);
-                    if (GUILayout.Button("Вернуть исходный")) ChangeProtocol(settings, state, connected, true);
+                    if (GUILayout.Button("Use TCP on next connection")) ChangeProtocol(settings, state, connected, false);
+                    if (GUILayout.Button("Restore original settings")) ChangeProtocol(settings, state, connected, true);
                     GUILayout.EndHorizontal();
                 }
                 finally { GUI.enabled = previous; }
                 GUILayout.Label(networkMessage, textStyle);
-                bool retry = GUILayout.Toggle(ConnectionRetry.Enabled, "До 3 подтверждаемых повторов ВХОДА; создание комнаты не повторяется");
+                bool retry = GUILayout.Toggle(ConnectionRetry.Enabled, "Up to 3 confirmed JOIN retries; room creation is never retried");
                 if (retry != ConnectionRetry.Enabled) ConnectionRetry.SetEnabled(retry);
                 GUILayout.Label(ConnectionRetry.Status, textStyle);
                 if (ConnectionRetry.NeedsAcknowledgement &&
-                    GUILayout.Button("Окно ошибки Photon закрыто, повторить вход"))
+                    GUILayout.Button("Photon error dialog closed, retry joining"))
                     ConnectionRetry.ConfirmErrorDismissed();
-                if (GUILayout.Button("Отменить повторы")) ConnectionRetry.Cancel("Отменено пользователем.");
-                if (settings == null) GUILayout.Label("Кнопки недоступны: настройки Photon ещё не загружены.", textStyle);
-                GUILayout.Label("Это экспериментальный транспорт Photon. Он не заменяет Photon и " +
-                    "не исправляет игровые рассинхроны. Настройка действует до перезапуска игры.", textStyle);
+                if (GUILayout.Button("Cancel retries")) ConnectionRetry.Cancel("Cancelled by user.");
+                if (settings == null) GUILayout.Label("Buttons unavailable: Photon settings are not loaded yet.", textStyle);
+                GUILayout.Label("This is an experimental Photon transport setting. It does not replace Photon or " +
+                    "fix gameplay desynchronization. The setting lasts until the game restarts.", textStyle);
             }
             catch (Exception e)
             {
-                GUILayout.Label("Настройки сети недоступны: " + e.GetBaseException().Message, textStyle);
+                GUILayout.Label("Network settings unavailable: " + e.GetBaseException().Message, textStyle);
             }
         }
 
@@ -570,110 +570,110 @@ namespace SolastaCoop
 
         private void DrawTravel()
         {
-            bool enabled = GUILayout.Toggle(travelShare.Enabled, "Экран путешествий хоста и курсоры участников");
+            bool enabled = GUILayout.Toggle(travelShare.Enabled, "Host travel screen and player cursors");
             if (enabled != travelShare.Enabled) travelShare.SetEnabled(enabled);
             GUILayout.Label(travelShare.Status, textStyle);
-            GUILayout.Label("Новая версия нужна хосту и клиентам. Во время карты и подготовки путешествия передаётся изображение только игрового окна, до 1280×720 и 1 кадра/с. Клики не передаются. Файлы изображений не сохраняются.", textStyle);
-            if (GUILayout.Button("Показать / скрыть просмотр [F6]")) travelShare.TogglePreview();
+            GUILayout.Label("All players must use the updated mod. During travel and map preparation, the game window is shared at up to 1280x720 and 1 FPS. Clicks are not transmitted, and screenshots are not saved to disk.", textStyle);
+            if (GUILayout.Button("Show / hide travel preview [F6]")) travelShare.TogglePreview();
             GUILayout.Space(12);
-            GUILayout.Label("Голосования за быстрое перемещение", titleStyle);
+            GUILayout.Label("Fast-travel votes", titleStyle);
             bool acceptFastTravel = GUILayout.Toggle(autoFastTravelVote.Enabled,
-                "Автоматически нажимать «Принять» при отправке к точке маршрута");
+                "Automatically accept fast-travel destination votes");
             if (acceptFastTravel != autoFastTravelVote.Enabled)
                 autoFastTravelVote.SetEnabled(acceptFastTravel);
-            GUILayout.Label(autoFastTravelVote.Status + "\nОстальные виды голосований и подтверждений не затрагиваются.", textStyle);
+            GUILayout.Label(autoFastTravelVote.Status + "\nOther votes and confirmations are not affected.", textStyle);
         }
 
         private void DrawLoot()
         {
-            GUILayout.Label("Общий интерактивный лут: настоящее окно Solasta, без трансляции экрана. Тестовая версия.", textStyle);
-            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Общий интерактивный лут сундуков и трупов");
+            GUILayout.Label("Shared interactive loot uses the native Solasta window, without screen streaming. Experimental feature.", textStyle);
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Shared interactive chest and corpse loot");
             if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
             GUILayout.Label(lootShare.Status, textStyle);
-            GUILayout.Label("Второму игроку открывается локальное штатное окно. " +
-                "Второй игрок может забирать предметы своим героем. Для общего сундука отключена проверка дальности в UI; серверные проверки игры сохраняются. F11 отключён.", textStyle);
-            if (GUILayout.Button("Закрыть общее окно лута")) lootShare.ClosePreview();
+            GUILayout.Label("The other player gets a local native loot window. " +
+                "The other player can loot using their own hero. The shared chest UI ignores local distance checks; game-side checks may still apply. F11 is disabled.", textStyle);
+            if (GUILayout.Button("Close shared loot window")) lootShare.ClosePreview();
             GUILayout.Label(lootShare.Diagnostics, textStyle);
         }
 
         private void DrawDiagnostics()
         {
-            bool verbose = GUILayout.Toggle(Log.Verbose, "Подробные логи [F9]");
+            bool verbose = GUILayout.Toggle(Log.Verbose, "Verbose logging [F9]");
             if (verbose != Log.Verbose) diagnostics.SetVerbose(verbose);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Сохранить отчёт [F10]")) diagnostics.SaveReport();
-            if (GUILayout.Button("Повторить проверки"))
+            if (GUILayout.Button("Save diagnostic report [F10]")) diagnostics.SaveReport();
+            if (GUILayout.Button("Run checks again"))
             {
                 try { diagnostics.RunChecks(); }
                 catch (Exception e) { Log.Error("core", "Manual API checks", e); }
             }
             GUILayout.EndHorizontal();
             scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(Math.Max(100, window.height - 350)));
-            GUILayout.Label("Логи: " + Log.DirectoryPath + "\nДо 1 МиБ на журнал, 3 резервные копии. " +
-                "Сеть отслеживается и при скрытой панели.", textStyle);
-            if (Log.Writer.FailedWrites > 0) GUILayout.Label("Ошибки записи логов: " + Log.Writer.FailedWrites +
+            GUILayout.Label("Logs: " + Log.DirectoryPath + "\nUp to 1 MiB per log, 3 backups. " +
+                "Network monitoring continues while the panel is hidden.", textStyle);
+            if (Log.Writer.FailedWrites > 0) GUILayout.Label("Log write failures: " + Log.Writer.FailedWrites +
                 "\n" + Log.Writer.LastError, textStyle);
             GUILayout.Label(diagnostics.ReportMessage, textStyle);
             GUILayout.Label(observerHud.Status + "\n" + lootShare.Diagnostics, textStyle);
             GUILayout.Label(DetailedTooltips.Status, textStyle);
-            GUILayout.Label("Сеть\n" + diagnostics.LatestNetwork + "\n\nДальность\n" + diagnostics.LatestRange +
+            GUILayout.Label("Network\n" + diagnostics.LatestNetwork + "\n\nRange\n" + diagnostics.LatestRange +
                 "\n\n" + diagnostics.Checks, textStyle);
             GUILayout.EndScrollView();
         }
 
         private void DrawTransfer()
         {
-            GUILayout.Label("Передача предметов между персонажами", titleStyle);
+            GUILayout.Label("Character-to-character item transfers", titleStyle);
             bool unlimited = GUILayout.Toggle(ItemTransferRange.Enabled,
-                "Разрешить передачу вне стандартных 6 клеток");
+                "Allow transfer beyond the standard 6 cells");
             if (unlimited != ItemTransferRange.Enabled) ItemTransferRange.SetEnabled(unlimited);
             GUILayout.Label(ItemTransferRange.Status, textStyle);
-            GUILayout.Label("Патч изменяет только дистанционную проверку выбора получателя " +
-                "в окне инвентаря. Серверные проверки не изменяются. " +
-                "В сетевой игре сделайте сохранение перед передачей, " +
-                "не выполняйте её при рассинхроне.", textStyle);
+            GUILayout.Label("The patch only changes recipient selection distance checks " +
+                "in the inventory window. Server-side checks are unchanged. " +
+                "In multiplayer, save before transferring items, " +
+                "and avoid transfers during desynchronization.", textStyle);
             GUILayout.Space(12);
-            GUILayout.Label("Автоходьба персонажей", titleStyle);
+            GUILayout.Label("Character auto-follow", titleStyle);
             bool next = GUILayout.Toggle(autoFollow.Enabled,
-                "Мои персонажи следуют за героем тиммейта (автоходьба)");
+                "My characters automatically follow a teammate");
             if (next != autoFollow.Enabled) autoFollow.SetEnabled(next);
             GUILayout.Label(autoFollow.Status + "\n" + (hostMoveShare == null ? "" : hostMoveShare.Status) +
-                "\nКоманды кликов хоста передаются через Photon. Только исследование; на клиенте включите автоходьбу.", textStyle);
-            if (GUILayout.Button("Выбирать ведущего автоматически по движению"))
+                "\nHost movement destinations are shared over Photon. Exploration only; enable auto-follow on the client.", textStyle);
+            if (GUILayout.Button("Automatically select moving leader"))
                 autoFollow.SelectAutomaticLeader();
-            GUILayout.Label("Чтобы следовать за конкретным героем тиммейта, выберите его имя в верхней части F8. "+
-                "Если несколько чужих героев, режим авто выбирает того, кто сейчас идёт.", textStyle);
+            GUILayout.Label("To follow a specific teammate hero, select them at the top of F8. "+
+                "When multiple teammate heroes exist, auto mode favors the one currently moving.", textStyle);
         }
 
         private void DrawCombatSpeed()
         {
-            GUILayout.Label("Скорость анимаций боя: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
+            GUILayout.Label("Combat animation speed: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
             float factor = GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f);
             if (Math.Abs(factor - CombatSpeed.Factor) > 0.125f)
                 CombatSpeed.SetFactor(factor);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("×1 (обычная)")) CombatSpeed.SetFactor(1f);
-            if (GUILayout.Button("×2 (по умолчанию)")) CombatSpeed.SetFactor(2f);
+            if (GUILayout.Button("×1 (normal)")) CombatSpeed.SetFactor(1f);
+            if (GUILayout.Button("×2 (default)")) CombatSpeed.SetFactor(2f);
             if (GUILayout.Button("×3")) CombatSpeed.SetFactor(3f);
             GUILayout.EndHorizontal();
             GUILayout.Space(10);
             GUILayout.Label(CombatSpeed.Status, textStyle);
-            GUILayout.Label("Ускоряет Animator, старые Animation и эффекты частиц только во время боя. " +
-                "Вне боя возвращает исходную скорость. Диапазон: ×1–×3, шаг ×0.25; при запуске ×2. " +
-                "Не ускоряет игровое время, сетевые таймеры, очередность ходов или движение по клеткам. " +
-                "Это экспериментальный визуальный режим для мультиплеера: ускорение событий анимации " +
-                "может повлиять на поведение игры. У обоих игроков рекомендуются одинаковые настройки.", textStyle);
+            GUILayout.Label("Speeds up Animator, legacy Animation, and particle effects during combat only. " +
+                "Restores normal speed outside combat. Range: ×1–×3, increments of ×0.25; starts at ×2. " +
+                "Does not speed up game time, network timers, turn order, or movement between cells. " +
+                "This is an experimental visual mode for multiplayer: faster animation events " +
+                "may affect gameplay. Using the same settings on both clients is recommended.", textStyle);
         }
 
         private void DrawCamera()
         {
-            GUILayout.Label("Максимальное отдаление: ×" + CameraZoom.Factor.ToString("0.0"), titleStyle);
+            GUILayout.Label("Maximum camera zoom-out: ×" + CameraZoom.Factor.ToString("0.0"), titleStyle);
             float factor = (float)Math.Round(GUILayout.HorizontalSlider(CameraZoom.Factor, 1f, 3f), 1);
             if (Math.Abs(factor - CameraZoom.Factor) > 0.05f) CameraZoom.SetFactor(factor);
-            if (GUILayout.Button("Вернуть стандартное отдаление")) CameraZoom.SetFactor(1f);
-            GUILayout.Label(CameraZoom.Status + "\n\nКолёсико мыши продолжает управлять зумом. " +
-                "Настройка расширяет дальнюю и среднюю орбиту обычной камеры боя и исследования. " +
-                "Сюжетные режимы и карта кампании исключены. Значение действует до перезапуска игры.", textStyle);
+            if (GUILayout.Button("Restore default zoom")) CameraZoom.SetFactor(1f);
+            GUILayout.Label(CameraZoom.Status + "\n\nThe mouse wheel still controls zoom. " +
+                "This extends the far and middle camera orbits during combat and exploration. " +
+                "Cinematic modes and the world map are excluded. This setting resets when the game restarts.", textStyle);
         }
 
         private void DrawHoverRange()
@@ -681,8 +681,8 @@ namespace SolastaCoop
             if (!showHoverRange || hoverRange == null) return;
             Vector2 pointer = Event.current.mousePosition;
             if (visible && window.Contains(pointer)) return;
-            string text = "Расстояние: " + hoverRange.Distance.ToString("0.0") + " кл.\nДальность: " +
-                Math.Round(hoverRange.Maximum).ToString("0") + " кл.";
+            string text = "Distance: " + hoverRange.Distance.ToString("0.0") + " cells\nRange: " +
+                Math.Round(hoverRange.Maximum).ToString("0") + " cells";
             float width = Math.Min(230, Screen.width - 10);
             float height = rangeStyle.CalcHeight(new GUIContent(text), width);
             float x = Mathf.Clamp(pointer.x + 24, 5, Math.Max(5, Screen.width - width - 5));

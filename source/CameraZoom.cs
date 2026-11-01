@@ -15,7 +15,7 @@ namespace SolastaCoop
         private static readonly Dictionary<object, SavedOrbit> saved = new Dictionary<object, SavedOrbit>();
         private static bool installed;
         internal static float Factor { get; private set; } = 1f;
-        internal static string Status { get; private set; } = "Стандартное отдаление камеры.";
+        internal static string Status { get; private set; } = "Default camera zoom.";
 
         private static bool Supported(object mode)
         {
@@ -30,7 +30,7 @@ namespace SolastaCoop
             try
             {
                 if (Single.IsNaN(factor) || Single.IsInfinity(factor) || factor < 1f || factor > 3f)
-                    throw new ArgumentOutOfRangeException("factor", "Диапазон отдаления: 1-3.");
+                    throw new ArgumentOutOfRangeException("factor", "Zoom-out multiplier must be between 1 and 3.");
                 factor = (float)Math.Round(factor, 1);
                 if (factor > 1f && !installed)
                 {
@@ -42,13 +42,13 @@ namespace SolastaCoop
                 }
                 RestoreAll();
                 Factor = factor;
-                Status = factor == 1f ? "Стандартное отдаление камеры." : "Предел отдаления камеры: ×" + factor.ToString("0.0");
+                Status = factor == 1f ? "Default camera zoom." : "Maximum camera zoom-out: ×" + factor.ToString("0.0");
                 Log.Write("Camera zoom factor=" + factor.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception e)
             {
                 RestoreAll(); Factor = 1f;
-                Status = "Настройка камеры отключена: " + e.GetBaseException().Message;
+                Status = "Camera adjustment disabled: " + e.GetBaseException().Message;
                 Log.Error("core", "Camera zoom", e);
             }
         }
@@ -89,7 +89,7 @@ namespace SolastaCoop
                 if (!CurrentGameplayMode(__instance)) return;
                 object camera = Read.Get(__instance, "FreeLookCamera");
                 Array original = Read.Get(camera, "m_Orbits") as Array;
-                if (original == null || original.Length != 3) throw new InvalidOperationException("Не найдены три орбиты камеры.");
+                if (original == null || original.Length != 3) throw new InvalidOperationException("The three camera orbits were not found.");
                 Array result = (Array)original.Clone();
                 for (int i = 0; i < 2; i++)
                 {
@@ -131,7 +131,7 @@ namespace SolastaCoop
         {
             Factor = 1f;
             RestoreAll();
-            Status = "Настройка камеры отключена после ошибки: " + error.GetBaseException().Message;
+            Status = "Camera adjustment disabled after error: " + error.GetBaseException().Message;
             Log.Error("core", "Camera orbit adjustment", error);
         }
     }

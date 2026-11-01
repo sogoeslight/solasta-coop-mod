@@ -12,16 +12,16 @@ namespace SolastaCoop
         internal string Change(object settings, string state, bool connected, bool restore)
         {
             if (settings == null)
-                throw new InvalidOperationException("Настройки Photon пока недоступны.");
+                throw new InvalidOperationException("Photon settings are not available yet.");
             FieldInfo protocol = settings.GetType().GetField("Protocol");
             FieldInfo fallback = settings.GetType().GetField("EnableProtocolFallback");
             if (protocol == null || !protocol.FieldType.IsEnum || fallback == null || fallback.FieldType != typeof(bool))
-                throw new InvalidOperationException("Эта версия настроек Photon не поддерживается.");
+                throw new InvalidOperationException("This Photon settings version is not supported.");
             object tcp = Enum.Parse(protocol.FieldType, "Tcp");
             if (capturedSettings != null && !ReferenceEquals(settings, capturedSettings))
-                throw new InvalidOperationException("Объект настроек сменился. Перезапустите игру перед изменением транспорта.");
+                throw new InvalidOperationException("The settings instance changed. Restart the game before switching transport.");
             if (restore && capturedSettings == null)
-                return "Исходные настройки ещё не изменялись.";
+                return "Original settings have not been changed.";
 
             object beforeProtocol = protocol.GetValue(settings);
             bool beforeFallback = (bool)fallback.GetValue(settings);
@@ -44,11 +44,11 @@ namespace SolastaCoop
                 originalProtocol = beforeProtocol;
                 originalFallback = beforeFallback;
             }
-            return "Следующее подключение: " + nextProtocol + "; автоматический переход на другой протокол: " +
-                (nextFallback ? "включён" : "выключен") + "." +
+            return "Next connection: " + nextProtocol + "; automatic protocol fallback: " +
+                (nextFallback ? "enabled" : "disabled") + "." +
                 (connected || (state != "PeerCreated" && state != "Disconnected")
-                    ? " Текущее подключение не изменено. Полностью выйдите из мультиплеера и подключитесь заново без перезапуска игры."
-                    : " Подключитесь обычным способом.");
+                    ? " The current connection is unchanged. Leave multiplayer completely and reconnect without restarting the game."
+                    : " Connect normally.");
         }
     }
 }

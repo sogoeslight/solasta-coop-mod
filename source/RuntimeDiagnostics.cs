@@ -349,13 +349,13 @@ namespace SolastaCoop
                     .GetFiles("diagnostics-" + BuildInfo.Version + "-*.txt")
                     .Where(f => f.FullName != path)
                     .OrderByDescending(f => f.LastWriteTimeUtc).ThenByDescending(f => f.Name).Skip(4)) old.Delete();
-                reportMessage = "Отчёт сохранён: " + path;
+                reportMessage = "Report saved: " + path;
                 Log.Write("Diagnostic report saved: " + Path.GetFileName(path));
                 return path;
             }
             catch (Exception e)
             {
-                reportMessage = "Не удалось сохранить отчёт: " + e.GetBaseException().Message;
+                reportMessage = "Failed to save report: " + e.GetBaseException().Message;
                 Log.Error("core", "Save diagnostic report", e);
                 return null;
             }

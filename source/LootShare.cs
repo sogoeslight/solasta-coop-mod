@@ -51,7 +51,7 @@ namespace SolastaCoop
         private int distanceBypasses, proximitySourceOverrides, blockedActions;
 
         internal bool Enabled { get; private set; }
-        internal string Status { get; private set; } = "Интерактивный общий лут выключен.";
+        internal string Status { get; private set; } = "Shared interactive loot is disabled.";
         internal string Diagnostics
         {
             get
@@ -81,17 +81,17 @@ namespace SolastaCoop
                 pendingOpen = null;
                 Detach();
                 Enabled = false;
-                Status = "Интерактивный общий лут выключен.";
+                Status = "Shared interactive loot is disabled.";
                 return;
             }
             if (!hooksInstalled)
             {
                 Enabled = false;
-                Status = "Не удалось подключить штатный лут. См. loot-лог.";
+                Status = "Could not attach native loot hooks. See loot log.";
                 return;
             }
             Enabled = true;
-            Status = "Ожидание открытия сундука или лута с земли.";
+            Status = "Waiting for a chest or ground loot to open.";
         }
 
         private static MethodInfo FindMethod(string typeName, string methodName, int arguments)
@@ -162,7 +162,7 @@ namespace SolastaCoop
             object chosen = Read.Get(guiHero, "GameLocationCharacter");
             if (IsLocallyControlled(chosen)) return true;
             owner.blockedActions++;
-            owner.Status = "Выберите собственного персонажа для лута. Чужим персонажем брать вещи нельзя.";
+            owner.Status = "Select your own hero to loot. You cannot loot with another player's hero.";
             if (DateTime.UtcNow >= owner.nextBlockedActionLog)
             {
                 owner.nextBlockedActionLog = DateTime.UtcNow.AddSeconds(3);
@@ -393,12 +393,12 @@ namespace SolastaCoop
             }
             if (sourceHero == null || localHero == null || kind == OpenContainer && container == null)
             {
-                Status = "Жду исходный объект и своего персонажа; повторю открытие...";
+                Status = "Waiting for the source object and a local hero; will retry opening...";
                 return;
             }
             object modal = Modal(kind);
-            if (modal == null) { Status = "Экран лута не найден через GuiService.GetScreen."; return; }
-            if (IsVisible(modal) || localKind != 0) { Status = "Жду закрытия другого окна лута."; return; }
+            if (modal == null) { Status = "Loot screen was not found via GuiService.GetScreen."; return; }
+            if (IsVisible(modal) || localKind != 0) { Status = "Waiting for another loot window to close."; return; }
 
             bool originalDisabled = Object.Equals(Read.Get(modal, "ShouldDisableSlots"), true);
             bool success = false;
@@ -413,7 +413,7 @@ namespace SolastaCoop
                 else Read.Call(modal, "ShowProximityLoot", localHero);
                 if (!IsVisible(modal))
                 {
-                    Status = "Штатное окно не стало видимым, повторяю...";
+                    Status = "Native loot window did not become visible; retrying...";
                     return;
                 }
                 remoteModal = modal;
@@ -422,13 +422,13 @@ namespace SolastaCoop
                 remoteOpenedAt = DateTime.UtcNow;
                 remoteSender = sender;
                 success = true;
-                Status = "Открыт общий лут: выбирайте своих героев и забирайте предметы (без проверки дальности UI).";
+                Status = "Shared loot opened: select your own heroes and take items (UI distance check bypassed).";
                 Log.Write("Interactive native loot open; sender=" + sender + "; kind=" + kind +
                     "; receiverHero=" + GuidOf(localHero) + "; sourceHero=" + heroId + "; container=" + containerId);
             }
             catch (Exception ex)
             {
-                Status = "Не удалось открыть общий лут: " + ex.GetBaseException().Message;
+                Status = "Failed to open shared loot: " + ex.GetBaseException().Message;
                 Log.Error("loot", "Open interactive native loot", ex);
             }
             finally
@@ -478,14 +478,14 @@ namespace SolastaCoop
                 // Once opened, the second player owns their local modal. Do not close it
                 // just because the original opener stopped looting first.
                 if (remoteSender == message.Sender)
-                    Status = "Другой игрок закрыл лут. Ваше окно остаётся открытым до закрытия вами.";
+                    Status = "The other player closed their loot window. Yours remains open until you close it.";
                 return;
             }
             if (remoteSender != 0) return;
             pendingOpen = message;
             pendingSince = DateTime.UtcNow;
             nextOpenAttempt = DateTime.MinValue;
-            Status = "Получено открытие, ищу объект и локального персонажа.";
+            Status = "Open event received; locating source object and local hero.";
             Log.Write("Interactive loot received; sender=" + message.Sender + "; kind=" + kind + "; seq=" + seq);
         }
 
@@ -514,7 +514,7 @@ namespace SolastaCoop
                 {
                     if ((DateTime.UtcNow - pendingSince).TotalSeconds > 12)
                     {
-                        Status = "Не удалось открыть общий лут за 12 секунд. Проверьте loot-лог.";
+                        Status = "Unable to open shared loot within 12 seconds. Check the loot log.";
                         Log.Event("loot", "WARN", "Interactive native loot open timed out: " + Diagnostics);
                         pendingOpen = null;
                     }
@@ -542,7 +542,7 @@ namespace SolastaCoop
                     }
                 }
                 if (remoteSender == 0 && localKind == 0 && pendingOpen == null)
-                    Status = "Жду сундук или труп. Штатный UI, предметы можно забирать своим героем.";
+                    Status = "Waiting for a chest or corpse. Native loot UI lets you take items with your own hero.";
             }
             catch (Exception ex)
             {

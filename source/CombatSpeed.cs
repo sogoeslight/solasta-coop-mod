@@ -24,12 +24,12 @@ namespace SolastaCoop
         {
             get
             {
-                return "Анимации боя: ×" + Factor.ToString("0.00") +
-                    "; бой=" + (active ? "да" : "нет") +
+                return "Combat animations: ×" + Factor.ToString("0.00") +
+                    "; in combat=" + (active ? "yes" : "no") +
                     "; Animator=" + AnimatorOriginal.Count +
                     "; AnimationState=" + LegacyOriginal.Count +
                     "; VFX=" + ParticleOriginal.Count +
-                    (lastError.Length == 0 ? "" : "; ошибка=" + lastError);
+                    (lastError.Length == 0 ? "" : "; error=" + lastError);
             }
         }
 

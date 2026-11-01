@@ -19,7 +19,7 @@ namespace SolastaCoop
         {
             if (Double.IsNaN(distance) || Double.IsInfinity(distance) || distance < 0 ||
                 Double.IsNaN(maximum) || Double.IsInfinity(maximum) || maximum < 0)
-                throw new ArgumentOutOfRangeException("distance", "Некорректная дальность.");
+                throw new ArgumentOutOfRangeException("distance", "Invalid distance.");
             Source = source;
             Target = target;
             Spell = spell;

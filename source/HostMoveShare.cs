@@ -32,7 +32,7 @@ namespace SolastaCoop
         private ulong lastCharacter;
         private int lastX, lastY, lastZ, sequence, receivedSequence;
         private int receivedFrom;
-        internal string Status { get; private set; } = "Ожидание подключения к Photon.";
+        internal string Status { get; private set; } = "Waiting for a Photon connection.";
 
         internal HostMoveShare(PartyAutoFollow follower)
         {
@@ -107,7 +107,7 @@ namespace SolastaCoop
             catch (Exception ex)
             {
                 disabled = true;
-                Status = "Не удалось подключить команды ходьбы: " + ex.GetBaseException().Message;
+                Status = "Failed to hook movement commands: " + ex.GetBaseException().Message;
                 Log.Error("core", "Install host movement hook", ex);
             }
         }
@@ -141,7 +141,7 @@ namespace SolastaCoop
             ObserverHud.SetMember(send, "Reliability", true);
             raiseEvent.Invoke(null, new object[] { EventCode,
                 new object[] { Magic, ++sequence, guid.ToString(), x, y, z }, options, send });
-            Status = "Отправлена точка хоста: " + x + ", " + y + ", " + z + ".";
+            Status = "Host waypoint sent: " + x + ", " + y + ", " + z + ".";
         }
 
         private void Attach(object next)
@@ -204,7 +204,7 @@ namespace SolastaCoop
                 if (!online)
                 {
                     Detach();
-                    Status = "Ожидание мультиплеера.";
+                    Status = "Waiting for multiplayer.";
                     return;
                 }
                 Attach(Read.Get(photon, "NetworkingClient"));
@@ -224,12 +224,12 @@ namespace SolastaCoop
                     receivedFrom = move.Sender;
                     receivedSequence = move.Sequence;
                     Follower.OnHostMove(move.Character, move.X, move.Y, move.Z);
-                    Status = "Принята команда хоста: " + move.X + ", " + move.Y + ", " + move.Z + ".";
+                    Status = "Host movement command received: " + move.X + ", " + move.Y + ", " + move.Z + ".";
                 }
             }
             catch (Exception ex)
             {
-                Status = "Ошибка передачи команд: " + ex.GetBaseException().Message;
+                Status = "Movement command sharing error: " + ex.GetBaseException().Message;
                 Log.Error("network", "Host movement channel", ex);
             }
         }

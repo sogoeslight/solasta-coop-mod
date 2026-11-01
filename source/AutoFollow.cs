@@ -53,9 +53,9 @@ namespace SolastaCoop
             hostMoveVersion++;
             hostWaypointActive = true;
             if (!manualLeader) leaderGuid = leader;
-            Status = "Хост выбрал клетку (" + x + ", " + y + ", " + z + "). Следую по команде.";
+            Status = "Host selected destination (" + x + ", " + y + ", " + z + "). Following host command.";
         }
-        internal string Status { get; private set; } = "Выключено.";
+        internal string Status { get; private set; } = "Disabled.";
 
         private static ulong Id(object character)
         {
@@ -109,7 +109,7 @@ namespace SolastaCoop
             if (id == 0 || LocallyControlled(character) != false) return;
             leaderGuid = id;
             manualLeader = true;
-            if (Enabled) Status = "Выбран ведущий: " + Read.Name(character);
+            if (Enabled) Status = "Selected leader: " + Read.Name(character);
         }
 
         internal void SetEnabled(bool enabled, object selected = null)
@@ -121,7 +121,7 @@ namespace SolastaCoop
                 lastHostMoveCommand.Clear();
                 hostWaypointActive = false;
                 observations.Clear();
-                Status = "Автоходьба выключена.";
+                Status = "Auto-follow disabled.";
                 return;
             }
             if (selected != null) SelectTarget(selected);
@@ -134,7 +134,7 @@ namespace SolastaCoop
             issuedCommands = 0;
             skippedBusy = 0;
             lastError = null;
-            Status = "Ищу движущегося персонажа тиммейта.";
+            Status = "Looking for a moving teammate hero.";
         }
 
         internal void SelectAutomaticLeader()
@@ -142,7 +142,7 @@ namespace SolastaCoop
             manualLeader = false;
             leaderGuid = 0UL;
             hostWaypointActive = false;
-            if (Enabled) Status = "Ведущий выбирается автоматически по движению.";
+            if (Enabled) Status = "Leader is selected automatically based on movement.";
         }
 
         private void ObserveRemoteCharacters(IEnumerable<object> remotes)
@@ -212,27 +212,27 @@ namespace SolastaCoop
                 if (Read.Get(Read.Type("Gui"), "GameLocation") == null ||
                     Read.Get(Read.Type("Gui"), "Battle") != null)
                 {
-                    Status = "Приостановлено: не исследование или начался бой.";
+                    Status = "Paused: not exploring or combat started.";
                     return;
                 }
                 object cursor = Read.Get(Read.Service("ICursorService"), "CurrentCursor");
                 if (cursor == null || !cursor.GetType().Name.StartsWith("CursorLocationExploration", StringComparison.Ordinal))
                 {
-                    Status = "Приостановлено: диалог, меню, катсцена или загрузка.";
+                    Status = "Paused: dialogue, menu, cutscene, or loading.";
                     return;
                 }
                 var party = Read.Items(Read.Get(Read.Service("IGameLocationCharacterService"), "PartyCharacters")).ToList();
                 var classified = party.Select(p => new { Character = p, Local = LocallyControlled(p) }).ToList();
                 if (classified.Count < 2 || classified.Any(c => !c.Local.HasValue))
                 {
-                    Status = "Нет команды или не удалось безопасно определить владельцев персонажей.";
+                    Status = "No command available or character ownership could not be verified safely.";
                     return;
                 }
                 var locals = classified.Where(c => c.Local == true).Select(c => c.Character).ToList();
                 var remotes = classified.Where(c => c.Local == false).Select(c => c.Character).ToList();
                 if (locals.Count == 0 || remotes.Count == 0)
                 {
-                    Status = "Нужны локальный герой и герой тиммейта.";
+                    Status = "Both a local hero and a teammate hero are required.";
                     return;
                 }
                 ObserveRemoteCharacters(remotes);
@@ -254,7 +254,7 @@ namespace SolastaCoop
                 object actionService = Read.Service("IGameLocationActionService");
                 if (commands == null || actionService == null)
                 {
-                    Status = "Служба команд или действий Solasta ещё недоступна.";
+                    Status = "Solasta command or action service is not available yet.";
                     return;
                 }
                 MethodInfo move = commands.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
@@ -320,9 +320,9 @@ namespace SolastaCoop
                     issuedCommands++;
                     sent++;
                 }
-                Status = (followHostCommand ? "Иду к точке хоста за " : "Следую за ") + Read.Name(leader) + (manualLeader ? " (выбран)" : " (авто)") +
-                    ". Команд: " + issuedCommands + ", отправлено сейчас: " + sent +
-                    ", уже рядом: " + near + ", заняты: " + busy + ".";
+                Status = (followHostCommand ? "Moving toward host waypoint behind " : "Following ") + Read.Name(leader) + (manualLeader ? " (manual)" : " (auto)") +
+                    ". Commands: " + issuedCommands + ", issued now: " + sent +
+                    ", already near: " + near + ", busy: " + busy + ".";
                 if (Log.Verbose && sent > 0 && Time.unscaledTime > nextDiagnostic)
                 {
                     nextDiagnostic = Time.unscaledTime + 5f;
@@ -336,7 +336,7 @@ namespace SolastaCoop
                 Enabled = false;
                 lastCommand.Clear();
                 lastError = ex.GetBaseException().Message;
-                Status = "Автоходьба остановлена: " + lastError;
+                Status = "Auto-follow stopped: " + lastError;
                 Log.Error("core", "Party auto-follow", ex);
             }
         }

@@ -29,7 +29,7 @@ public static class VerifyTransport
         {
             string message = transport.Change(settings, state, true, false);
             Require(settings.Protocol == Protocol.Tcp && !settings.EnableProtocolFallback &&
-                message.Contains("Текущее подключение не изменено"),
+                message.Contains("The current connection is unchanged"),
                 "Next-connection selection allowed with explicit reconnect notice in state " + state);
             transport.Change(settings, state, true, true);
             Require(settings.Protocol == Protocol.Udp && settings.EnableProtocolFallback,

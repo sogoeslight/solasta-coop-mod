@@ -17,12 +17,12 @@ checks = {
     'Only JoinRoom is replayed': 'if (request.Name != "JoinRoom")' in retry,
     'Native confirmation required': 'internal static void ConfirmErrorDismissed()' in retry,
     'Tick blocks unacknowledged replay': 'needsAcknowledgement || !acknowledged || NativeModalBlocksInput()' in retry,
-    'User-facing acknowledgement button': 'GUILayout.Button("Окно ошибки Photon закрыто, повторить вход")' in hud,
+    'User-facing acknowledgement button': 'GUILayout.Button("Photon error dialog closed, retry joining")' in hud,
     'Warlock select invocation': 'parameter == "SelectInvocation"' in preview,
     'Warlock pact spells': 'parameter == "SelectPactSpell"' in preview,
     'Read-only cast hook retained': '"PreviewItemClicked"' in preview,
     'HUD enabled by default': 'observerHud.SetEnabled(true)' in hud,
-    'No experimental HUD label': 'Штатная панель союзника (просмотр, эксперимент)' not in hud,
+    'No experimental HUD label': 'Native teammate panel (experimental)' not in hud,
     'Host duplicate room fixture': 'CreateRoom never retries' in verify_retry,
     'Retry ack fixture': 'does NOT retry while Photon error is unacknowledged' in verify_retry,
     'Warlock read-only fixture': 'Warlock invocation spell selector stays clickable' in verify_hud,
@@ -51,6 +51,7 @@ checks = {
     'Combat speed in build': 'source / "CombatSpeed.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
     'Combat speed slider visible': 'GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f)' in hud,
     'Unity animation dependencies': 'UnityEngine.AnimationModule' in (root / 'build.py').read_text(encoding="utf-8") and 'UnityEngine.ParticleSystemModule' in (root / 'build.py').read_text(encoding="utf-8"),
+    'English-only mod source': not any(any('\u0400' <= c <= '\u04ff' for c in p.read_text(encoding='utf-8')) for p in root.glob('*.cs')),
 }
 for name, ok in checks.items():
     print(('PASS' if ok else 'FAIL') + ' ' + name)

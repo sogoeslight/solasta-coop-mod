@@ -19,7 +19,7 @@ namespace SolastaCoop
         private int accepted;
 
         internal bool Enabled { get; private set; } = true;
-        internal string Status { get; private set; } = "Автопринятие голосования за быстрое перемещение: включено.";
+        internal string Status { get; private set; } = "Auto-accept fast-travel votes: enabled.";
         internal bool VotePending { get { return pending != null; } }
 
         internal void Install()
@@ -38,13 +38,13 @@ namespace SolastaCoop
                     BindingFlags.Static | BindingFlags.NonPublic);
                 HarmonySupport.Patch(showVote, null, afterShow);
                 installed = true;
-                Status = "Автопринятие быстрого перемещения готово.";
+                Status = "Fast-travel auto-accept is ready.";
                 Log.Event("core", "INFO", "Fast-travel vote auto-accept: native ShowVote hook installed.");
             }
             catch (Exception ex)
             {
                 Enabled = false;
-                Status = "Автопринятие недоступно: " + ex.GetBaseException().Message;
+                Status = "Auto-accept unavailable: " + ex.GetBaseException().Message;
                 Log.Error("core", "Install fast-travel vote hook", ex);
             }
         }
@@ -59,8 +59,8 @@ namespace SolastaCoop
         {
             Enabled = enabled && installed;
             if (!Enabled) pending = null;
-            Status = enabled && !installed ? "Не удалось подключить штатный обработчик голосований." :
-                (Enabled ? "Быстрое перемещение принимается автоматически." : "Автопринятие выключено.");
+            Status = enabled && !installed ? "Failed to attach the native voting handler." :
+                (Enabled ? "Fast-travel votes are accepted automatically." : "Auto-accept disabled.");
         }
 
         private static void AfterVoteShown(object __instance)
@@ -70,7 +70,7 @@ namespace SolastaCoop
                 !current.fastTravelType.IsInstanceOfType(__instance)) return;
             current.pending = __instance;
             current.pendingSince = Time.unscaledTime;
-            current.Status = "Обнаружено голосование за быстрое перемещение. Ожидание появления окна.";
+            current.Status = "Fast-travel vote detected. Waiting for the voting dialog.";
             Log.Event("core", "INFO", "Fast-travel vote shown; auto-accept queued.");
         }
 
@@ -90,7 +90,7 @@ namespace SolastaCoop
                     if (elapsed > VisibilityTimeout)
                     {
                         pending = null;
-                        Status = "Окно голосования исчезло до автопринятия.";
+                        Status = "Voting dialog closed before auto-accept.";
                     }
                     return;
                 }
@@ -101,13 +101,13 @@ namespace SolastaCoop
                 pending = null; // At most one acceptance per ShowVote invocation.
                 accept.Invoke(modal, null);
                 accepted++;
-                Status = "Быстрое перемещение принято автоматически (" + accepted + ").";
+                Status = "Fast travel accepted automatically (" + accepted + ").";
                 Log.Event("core", "INFO", "Fast-travel vote accepted through native modal; count=" + accepted);
             }
             catch (Exception ex)
             {
                 pending = null;
-                Status = "Ошибка автопринятия: " + ex.GetBaseException().Message;
+                Status = "Auto-accept error: " + ex.GetBaseException().Message;
                 Log.Error("core", "Accept native fast-travel vote", ex);
             }
         }

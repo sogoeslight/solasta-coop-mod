@@ -18,7 +18,7 @@ namespace SolastaCoop
         private static readonly Dictionary<string, Delegate[]> menuCallbacks = new Dictionary<string, Delegate[]>();
         private static bool installed, replaying, expectedRegionDisconnect, needsAcknowledgement, acknowledged;
         internal static bool Enabled = true;
-        internal static string Status = "Защищённые повторы входа включены. Создание комнат никогда не повторяется автоматически.";
+        internal static string Status = "Protected join retries enabled. Room creation is never retried automatically.";
         internal static bool Pending { get { return budget.Pending; } }
         internal static bool NeedsAcknowledgement { get { return budget.Pending && needsAcknowledgement; } }
 
@@ -54,13 +54,13 @@ namespace SolastaCoop
         private static void Capture(object __instance, MethodBase __originalMethod, object[] captured)
         {
             if (replaying) return;
-            Cancel("Начат новый штатный запрос подключения.");
+            Cancel("A new native connection request has started.");
             if (!Enabled) return;
             // A timed-out CreateRoom may already exist on the Photon master server. Retrying it
             // creates GameIdAlreadyExists (32766), even when the local client isn't in the room.
             if (__originalMethod.Name == "CreateRoom")
             {
-                Status = "Создание комнаты выполняет игра. Автоповтор создания отключён, чтобы не получать 32766.";
+                Status = "Room creation is handled by the game. Automatic creation retries are disabled to avoid error 32766.";
                 Log.Event("network", "INFO", "CreateRoom observed, never retried to prevent duplicate room name.");
                 return;
             }
@@ -68,7 +68,7 @@ namespace SolastaCoop
             arguments = captured;
             CaptureMenuCallbacks();
             budget.Begin(); needsAcknowledgement = false; acknowledged = false;
-            Status = "Вход в комнату. При ошибке закройте системное окно Photon и разрешите повтор в разделе Сеть.";
+            Status = "Joining room. On failure, close the Photon error dialog and authorize a retry under Network.";
             Log.Event("network", "INFO", "JoinRoom captured; private parameters are not logged.");
         }
 
@@ -84,23 +84,23 @@ namespace SolastaCoop
                 {
                     needsAcknowledgement = true;
                     acknowledged = false;
-                    Status = "Ошибка " + Read.Text(__0) + ". Закройте окно «Фотон недоступен» через OK, " +
-                        "затем подтвердите повтор " + (budget.Used + 1) + "/3 в разделе Сеть.";
+                    Status = "Error " + Read.Text(__0) + ". Close the Photon unavailable dialog using OK, " +
+                        "then confirm retry " + (budget.Used + 1) + "/3 under Network.";
                     Log.Event("network", "WARN", Status);
                 }
-                else if (!budget.Active) Cancel("Повторы завершены: " + Read.Text(__0) + ".");
+                else if (!budget.Active) Cancel("Retries exhausted: " + Read.Text(__0) + ".");
             }
-            catch (Exception e) { Cancel("Ошибка планирования повтора."); Log.Error("network", "Plan retry", e); }
+            catch (Exception e) { Cancel("Failed to schedule retry."); Log.Error("network", "Plan retry", e); }
         }
 
         private static void Joined()
         {
             Type photon = Read.Type("Photon.Pun.PhotonNetwork");
             if (Object.Equals(Read.Get(photon, "OfflineMode"), false) && Object.Equals(Read.Get(photon, "InRoom"), true))
-                Cancel("Подключение выполнено.");
+                Cancel("Connected successfully.");
         }
-        private static void Rejected() { Cancel("Photon отклонил вход или создание комнаты. Повторы остановлены."); }
-        private static void Cancelled() { Cancel("Отменено пользователем."); }
+        private static void Rejected() { Cancel("Photon rejected join or room creation. Retries stopped."); }
+        private static void Cancelled() { Cancel("Cancelled by user."); }
 
         internal static void Cancel(string reason)
         {
@@ -113,8 +113,8 @@ namespace SolastaCoop
         internal static void SetEnabled(bool enabled)
         {
             Enabled = enabled;
-            if (!enabled) Cancel("Повторы входа выключены.");
-            else Status = "Защищённые повторы входа включены. Создание комнат не повторяется автоматически.";
+            if (!enabled) Cancel("Join retries disabled.");
+            else Status = "Protected join retries enabled. Room creation is never retried automatically.";
         }
 
         private static bool NativeModalBlocksInput()
@@ -138,12 +138,12 @@ namespace SolastaCoop
             if (!Enabled || !budget.Pending || !needsAcknowledgement) return;
             if (NativeModalBlocksInput())
             {
-                Status = "Сначала закройте штатное окно Photon кнопкой OK.";
+                Status = "Close the native Photon error dialog using OK first.";
                 return;
             }
             acknowledged = true;
             needsAcknowledgement = false;
-            Status = "Ошибка подтверждена. Ожидаем безопасного состояния сети для одного повтора входа.";
+            Status = "Error acknowledged. Waiting for a safe network state before one join retry.";
             Log.Event("network", "INFO", "User acknowledged native error dialog; JoinRoom retry allowed.");
         }
 
@@ -184,21 +184,21 @@ namespace SolastaCoop
                 bool offline = Object.Equals(Read.Get(photon, "OfflineMode"), true);
                 string state = Read.Text(Read.Get(client, "State"));
                 if (!offline && Object.Equals(Read.Get(photon, "InRoom"), true))
-                { Cancel("Подключение выполнено."); return; }
+                { Cancel("Connected successfully."); return; }
                 // The facade sometimes reports ConnectedToMasterServer even while the peer is disconnected.
                 bool safe = state == "Disconnected" || state == "PeerCreated" ||
                     (offline && (state == "Joined" || state == "ConnectedToMasterServer"));
                 if (!budget.Take(DateTime.UtcNow, safe)) return;
-                if (manager == null || request == null || arguments == null) { Cancel("Нет запроса для повтора."); return; }
-                if (request.Name != "JoinRoom") { Cancel("Создавать комнату повторно небезопасно."); return; }
+                if (manager == null || request == null || arguments == null) { Cancel("No saved request to retry."); return; }
+                if (request.Name != "JoinRoom") { Cancel("Retrying room creation is unsafe."); return; }
                 acknowledged = false;
-                Status = "Повтор входа " + budget.Used + "/3 (таймаут Photon 10 с).";
+                Status = "Join retry " + budget.Used + "/3 (Photon timeout: 10 s).";
                 Log.Event("network", "INFO", Status);
                 replaying = true;
                 try { RestoreMenuCallbacks(); request.Invoke(manager, arguments); }
                 finally { replaying = false; }
             }
-            catch (Exception e) { Cancel("Не удалось повторить вход."); Log.Error("network", "Replay native JoinRoom request", e); }
+            catch (Exception e) { Cancel("Join retry failed."); Log.Error("network", "Replay native JoinRoom request", e); }
         }
     }
 }

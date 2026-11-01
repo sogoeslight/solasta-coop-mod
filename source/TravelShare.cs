@@ -36,7 +36,7 @@ namespace SolastaCoop
         private Rect preview = new Rect(16, 16, 1000, 620), imageRect;
         internal static bool Capturing { get; private set; }
         internal bool Enabled = true;
-        internal string Status = "Просмотр путешествий включён. Новая версия нужна всем игрокам.";
+        internal string Status = "Travel preview enabled. All players need the updated mod.";
         internal bool ShouldCapture { get; private set; }
         internal string DiagnosticSummary { get { return Status + "; enabled=" + Enabled + "; host=" + host +
             "; map=" + localTravel + "; peers=" + peers.Count + "; lastFrame=" + receivedSequence; } }
@@ -125,7 +125,7 @@ namespace SolastaCoop
             if (Enabled == enabled) return;
             if (!enabled && host && online) Send(new object[] { TravelWire.Magic, TravelWire.End, ++sequence }, null, true);
             Enabled = enabled; nextHello = DateTime.MinValue;
-            if (!enabled) { ClearRoom(); Detach(); Status = "Просмотр путешествий выключен."; }
+            if (!enabled) { ClearRoom(); Detach(); Status = "Travel preview disabled."; }
         }
         internal void Tick()
         {
@@ -182,15 +182,15 @@ namespace SolastaCoop
                     nextPointer = now.AddSeconds(0.2);
                 }
                 UpdateInputShield();
-                Status = sharing ? "Хост передаёт экран путешествий: до 1 кадра/с, курсоры до 5 раз/с." :
-                    host ? "Ожидание карты путешествий и клиентов с новой версией." :
-                    image != null && now - frameAt < TimeSpan.FromSeconds(5) ? "Экран путешествий хоста получен. F6 скрывает или показывает просмотр." :
-                    "Ожидание экрана путешествий хоста. Новая версия нужна всем игрокам.";
+                Status = sharing ? "Host shares the travel screen at up to 1 FPS and cursors at up to 5 updates/s." :
+                    host ? "Waiting for the travel map and clients with the updated mod." :
+                    image != null && now - frameAt < TimeSpan.FromSeconds(5) ? "Host travel screen received. Press F6 to show or hide the preview." :
+                    "Waiting for the host travel screen. All players need the updated mod.";
             }
             catch (Exception e)
             {
                 Log.Error("network", "Travel display suspended", e); SetEnabled(false);
-                Status = "Просмотр приостановлен: " + e.GetBaseException().Message;
+                Status = "Preview suspended: " + e.GetBaseException().Message;
             }
         }
         private void Accept(Incoming packet, DateTime now)
@@ -301,19 +301,19 @@ namespace SolastaCoop
             preview = new Rect(marginX, marginY,
                 Mathf.Max(160f, UnityEngine.Screen.width - 2f * marginX),
                 Mathf.Max(120f, UnityEngine.Screen.height - 2f * marginY));
-            preview = GUI.Window(487202, preview, DrawPreview, "Путешествие: экран хоста (только просмотр) | F6");
+            preview = GUI.Window(487202, preview, DrawPreview, "Travel: host screen (read-only) | F6");
             UpdateInputShield();
         }
         private void DrawPreview(int id)
         {
-            if (GUI.Button(new Rect(preview.width - 90, 2, 65, 20), "Скрыть")) TogglePreview();
+            if (GUI.Button(new Rect(preview.width - 90, 2, 65, 20), "Hide")) TogglePreview();
             float width = preview.width - 16, height = preview.height - 45;
             float ratio = Math.Min(width / image.width, height / image.height);
             Rect local = new Rect(8 + (width - image.width * ratio) / 2, 25, image.width * ratio, image.height * ratio);
             GUI.DrawTexture(local, image, ScaleMode.StretchToFill);
             imageRect = new Rect(preview.x + local.x, preview.y + local.y, local.width, local.height);
             DrawPointers(local);
-            GUI.Label(new Rect(8, preview.height - 21, preview.width - 16, 20), "Выборы делает хост. Клики здесь не передаются. Курсоры участников показывают, куда они указывают.");
+            GUI.Label(new Rect(8, preview.height - 21, preview.width - 16, 20), "The host makes all selections. Clicks here are not sent. Player cursors indicate where they point.");
             GUI.DragWindow(new Rect(0, 0, preview.width - 100, 23));
             if (new Rect(0, 0, preview.width, preview.height).Contains(Event.current.mousePosition) &&
                 (Event.current.type == EventType.MouseDown || Event.current.type == EventType.ScrollWheel)) Event.current.Use();
@@ -330,7 +330,7 @@ namespace SolastaCoop
                     GUI.color = item.Key == master ? Color.yellow : Color.cyan;
                     float x = area.x + area.width * p.X, y = area.y + area.height * p.Y;
                     GUI.DrawTexture(new Rect(x - 3, y - 3, 7, 7), Texture2D.whiteTexture);
-                    GUI.Label(new Rect(x + 7, y, 90, 22), item.Key == master ? "Хост" : "Игрок #" + item.Key);
+                    GUI.Label(new Rect(x + 7, y, 90, 22), item.Key == master ? "Host" : "Player #" + item.Key);
                 }
             }
             finally { GUI.color = before; }

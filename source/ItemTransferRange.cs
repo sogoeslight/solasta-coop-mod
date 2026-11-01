@@ -20,9 +20,9 @@ namespace SolastaCoop
         {
             get
             {
-                if (!installed) return "Патч дальности не установлен, применяется обычный лимит 6 клеток.";
-                return (Enabled ? "Выбор получателя: без практически достижимого лимита." : "Стандартные 6 клеток.") +
-                    " Заменено проверок: " + matched + ".";
+                if (!installed) return "Range patch was not installed; the standard 6-cell limit applies.";
+                return (Enabled ? "Recipient selection: effectively unlimited range." : "Standard 6-cell limit.") +
+                    " Patched checks: " + matched + ".";
             }
         }
         internal static void SetEnabled(bool enabled)

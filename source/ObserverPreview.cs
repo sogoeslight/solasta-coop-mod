@@ -103,7 +103,7 @@ namespace SolastaCoop
                 ClosePreview();
                 object menu = Read.Get(actionPanel, kind == "spell" ? "SpellSelectionPanel" : "PowerSelectionPanel");
                 if (menu == null || Object.Equals(Read.Get(menu, "Visible"), true))
-                { SetStatus("Список сейчас используется игрой. Просмотр ожидает."); return; }
+                { SetStatus("The game is using this list. Preview is waiting."); return; }
                 MethodInfo bind = menu.GetType().GetMethods(Flags).SingleOrDefault(m => m.Name == "Bind" &&
                     m.GetParameters().Length == (kind == "spell" ? 5 : 3));
                 if (bind == null) throw new MissingMethodException(menu.GetType().Name, "Bind");
@@ -122,15 +122,15 @@ namespace SolastaCoop
                 if (gameObject != null) Invoke(gameObject, "SetActive", false);
                 Invoke(menu, "Show", true);
                 previewsOpened++;
-                SetStatus("Открыт список союзника: " + (kind == "spell" ? "заклинания" : "способности") +
-                    ", " + Read.Text(type) + ". Наведение показывает описание. Применение отключено.");
+                SetStatus("Teammate list open: " + (kind == "spell" ? "spells" : "abilities") +
+                    ", " + Read.Text(type) + ". Hover to view descriptions. Casting or activating is disabled.");
             }
             catch (Exception e)
             {
                 ClosePreview();
                 LastFailure = e.GetBaseException().ToString();
                 Log.Error("core", "Open observer preview", e);
-                SetStatus("Не удалось открыть список: " + e.GetBaseException().Message);
+                SetStatus("Failed to open list: " + e.GetBaseException().Message);
             }
         }
 

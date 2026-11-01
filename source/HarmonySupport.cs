@@ -84,13 +84,13 @@ namespace SolastaCoop
                         "; Harmony=" + HarmonySupport.Version);
                 }
                 Enabled = enabled;
-                Status = enabled ? "Подробные тултипы способностей и предметов всегда включены." : "Подробные тултипы по Alt.";
+                Status = enabled ? "Detailed ability and item tooltips are always enabled." : "Detailed tooltips require Alt.";
                 Log.Write(Status);
             }
             catch (Exception e)
             {
                 Enabled = false;
-                Status = "Не удалось включить подробные тултипы: " + e.GetBaseException().Message;
+                Status = "Could not enable detailed tooltips: " + e.GetBaseException().Message;
                 Log.Error("core", "Detailed tooltips", e);
             }
         }
