@@ -2,7 +2,7 @@
 
 **Experimental quality-of-life mod for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op**, focused on character observation, travel, inventory interaction, camera controls and diagnostics.
 
-**Current source snapshot: `0.1.18`** | Windows x64 | Source distribution, **no prebuilt release DLL** | [Русская документация](docs/README.ru.md)
+**Current source snapshot: `0.1.18`** | Windows x64 | Source distribution, **no prebuilt release DLL**
 
 > [!WARNING]
 > Community experiment, **not affiliated with Tactical Adventures**. Features involving multiplayer commands, remote loot, auto-follow and combat animation timing are not verified in a live two-player test for this source snapshot. Back up the host save, use the same version on all players, and disable experimental features if the game desynchronizes.
@@ -97,7 +97,7 @@ For multiplayer testing, start with a **backup save**, verify the mod starts on 
 - **Desync:** collect diagnostics from **both** clients (F9/F10) and include exact time, map, action, and any native game errors. `Couldn't recover character used in action` can indicate failed multiplayer character mapping.
 - **Networking:** Photon `JoinRoom` retry needs manual confirmation that the game error dialog has been dismissed. Repeating `CreateRoom` can produce `32766` (duplicate room name).
 
-See [Russian troubleshooting guide](docs/TROUBLESHOOTING.ru.md) and [implementation overview](docs/ARCHITECTURE.md).
+See [Troubleshooting guide](docs/TROUBLESHOOTING.md) and [implementation overview](docs/ARCHITECTURE.md).
 
 ## Repository layout
 
@@ -109,7 +109,7 @@ source/build.py              C# payload + native Windows proxy build
 source/source_sanity_check.py  Static source checks
 build-windows.ps1            Windows build entry point
 .github/workflows/           Lightweight source validation (no game libraries)
-docs/                        RU docs, architecture, known risks
+docs/                        Architecture, troubleshooting, publishing notes
 ```
 
 ## Publishing to GitHub

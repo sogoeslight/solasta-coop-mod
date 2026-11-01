@@ -15,7 +15,7 @@ gh auth login
 
 ```powershell
 # Default is private, change to --public only after reviewing source and licenses.
-gh repo create solasta-coop-view --private --source=. --remote=origin --push
+gh repo create solasta-coop-mod --private --source=. --remote=origin --push
 git push origin v0.1.18-source
 gh repo view --web
 ```
@@ -25,8 +25,8 @@ To use your own existing repository, instead run `git remote add origin https://
 ## Restore from the Git bundle instead of ZIP
 
 ```powershell
-git clone .\Solasta-Coop-View-v0.1.18-history.bundle solasta-coop-view
-cd solasta-coop-view
+git clone .\Solasta-Coop-View-v0.1.18-history.bundle solasta-coop-mod
+cd solasta-coop-mod
 git log --oneline --max-count=12
 ```
 
