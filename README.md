@@ -2,7 +2,7 @@
 
 **Experimental quality-of-life mod for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op**, focused on character observation, travel, inventory interaction, camera controls and diagnostics.
 
-**Current source snapshot: `0.1.18`** | Windows x64 | Source distribution, **no prebuilt release DLL**
+**Current source snapshot: `0.1.18`** | Windows x64 | Automated Windows CI builds, no published binary release yet
 
 > [!WARNING]
 > Community experiment, **not affiliated with Tactical Adventures**. Features involving multiplayer commands, remote loot, auto-follow and combat animation timing are not verified in a live two-player test for this source snapshot. Back up the host save, use the same version on all players, and disable experimental features if the game desynchronizes.
@@ -37,9 +37,9 @@
 
 ## Windows CI and downloadable Releases
 
-A Windows x64 build workflow is available in [GitHub Actions](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml). It can compile `winhttp.dll`, upload a downloadable Actions artifact, and publish binaries to [Releases](https://github.com/sogoeslight/solasta-coop-mod/releases) when a new version tag is supplied.
+A Windows x64 build workflow is available in [GitHub Actions](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml). It compiles `winhttp.dll` and includes **only that DLL** inside the downloadable Actions artifact or, when a new version tag is provided, directly in [Releases](https://github.com/sogoeslight/solasta-coop-mod/releases). No extra mod ZIP or checksum file is generated.
 
-**Setup is required before builds can run:** GitHub-hosted runners do not include Solasta's managed DLLs. The repository owner must supply legally usable private compilation references. See [CI build and release setup](docs/CI_RELEASES.md). This workflow has not yet been validated by a successful hosted compilation.
+**Build references:** GitHub-hosted runners do not include Solasta's managed DLLs. The repository owner must supply legally usable private compilation references and refresh them when the referenced game assemblies change. See [CI build and release setup](docs/CI_RELEASES.md). A Windows hosted build has completed successfully, but runtime and multiplayer compatibility remain unverified.
 
 ## Build from source (Windows)
 
@@ -131,4 +131,4 @@ The commit history in this repository is a **reconstruction from archived source
 - Harmony: bundled binary with its own license and [upstream provenance](source/vendor/harmony/UPSTREAM.txt).
 - Solasta / Unity game DLLs: **not redistributed**. You must supply them from your own installed game for compilation.
 
-**Status:** source only, experimental, no guaranteed multiplayer compatibility or official support.
+**Status:** experimental, CI-compilable source, no guaranteed multiplayer compatibility or official support.
