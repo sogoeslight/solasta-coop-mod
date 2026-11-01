@@ -44,7 +44,7 @@ def main():
         "\n};\n", encoding="ascii")
 
     vendor = source / "doorstop"
-    names = [line.strip() for line in (vendor / "src/windows/proxy/proxylist.txt").read_text().splitlines()
+    names = [line.strip() for line in (vendor / "src/windows/proxy/proxylist.txt").read_text(encoding="utf-8").splitlines()
              if line.strip()]
     proxy = ["#include <windows.h>", "FARPROC coop_forwarders[%d];" % len(names),
              "void load_functions(void *dll) {"]
