@@ -33,13 +33,14 @@ namespace SolastaCoop
             Version = harmony.GetName().Version.ToString();
         }
 
-        internal static void Patch(MethodInfo target, MethodInfo prefix = null, MethodInfo postfix = null)
+        internal static void Patch(MethodInfo target, MethodInfo prefix = null, MethodInfo postfix = null, MethodInfo transpiler = null)
         {
             if (target == null) throw new MissingMethodException("Patch target missing.");
             Initialize();
             object before = prefix == null ? null : Activator.CreateInstance(methodType, new object[] { prefix });
             object after = postfix == null ? null : Activator.CreateInstance(methodType, new object[] { postfix });
-            patch.Invoke(patcher, new[] { (object)target, before, after, null, null });
+            object transformation = transpiler == null ? null : Activator.CreateInstance(methodType, new object[] { transpiler });
+            patch.Invoke(patcher, new[] { (object)target, before, after, transformation, null });
         }
     }
 

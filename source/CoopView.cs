@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.12.0")]
+[assembly: AssemblyVersion("0.1.13.0")]
 
 namespace Doorstop
 {
@@ -159,6 +159,7 @@ namespace SolastaCoop
         private GUIStyle rangeStyle;
         private bool showHoverRange = true;
         private float nextRangeRefresh;
+        private float nextFollowGuiError;
         private RangeSnapshot hoverRange;
         private string lastRangeError = "";
         private readonly PhotonTransport transport = new PhotonTransport();
@@ -166,6 +167,7 @@ namespace SolastaCoop
         private readonly ObserverHud observerHud = new ObserverHud();
         private readonly TravelShare travelShare = new TravelShare();
         private readonly LootShare lootShare = new LootShare();
+        private readonly CameraAutoFollow autoFollow = new CameraAutoFollow();
         private static volatile bool gameCharacterMappingError;
         private string networkMessage = "Выберите транспорт следующего подключения.";
 
@@ -176,6 +178,7 @@ namespace SolastaCoop
             Application.logMessageReceivedThreaded += UnityLog;
             DetailedTooltips.SetEnabled(true);
             CameraZoom.SetFactor(1.4f);
+            ItemTransferRange.Install();
             try { ConnectionRetry.Install(); }
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
             observerHud.SetEnabled(true);
@@ -191,6 +194,7 @@ namespace SolastaCoop
             observerHud.Dispose();
             travelShare.Dispose();
             lootShare.Dispose();
+            autoFollow.SetEnabled(false);
             ConnectionRetry.Cancel("Игра закрыта.");
             CameraZoom.RestoreAll();
             Log.Write("Overlay destroyed.");
@@ -248,6 +252,7 @@ namespace SolastaCoop
         private void Update()
         {
             CameraZoom.Tick();
+            autoFollow.Tick();
             ConnectionRetry.Tick();
             travelShare.Tick();
             lootShare.Tick();
@@ -405,6 +410,7 @@ namespace SolastaCoop
                     alignment = TextAnchor.UpperLeft, richText = false, padding = new RectOffset(10, 10, 8, 8) };
             }
             DrawHoverRange();
+            DrawAutoFollowButton();
             if (!visible) return;
             window.width = Math.Min(590, Screen.width - 10);
             window.height = Math.Min(650, Screen.height - 10);
@@ -412,6 +418,30 @@ namespace SolastaCoop
             window.y = Mathf.Clamp(window.y, 0, Math.Max(0, Screen.height - window.height));
             window = GUI.Window(487201, window, DrawWindow, "Solasta Coop View " + BuildInfo.Version + "  |  F8");
         }
+        private void DrawAutoFollowButton()
+        {
+            bool previous = GUI.enabled;
+            try
+            {
+                if (Read.Get(Read.Type("Gui"), "GameLocation") == null) return;
+                Rect rect = new Rect(Math.Max(8, Screen.width - 238), 14, 228, 34);
+                bool ready = Read.Get(Read.Type("Gui"), "Battle") == null;
+                GUI.enabled = previous && ready;
+                string label = autoFollow.Enabled ? "Автофоллоу камеры: ВКЛ" : "Автофоллоу камеры: ВЫКЛ";
+                if (GUI.Button(rect, label))
+                    autoFollow.SetEnabled(!autoFollow.Enabled, selectedCharacter);
+            }
+            catch (Exception ex)
+            {
+                if (Time.unscaledTime > nextFollowGuiError)
+                {
+                    nextFollowGuiError = Time.unscaledTime + 15f;
+                    Log.Error("core", "Camera follow button", ex);
+                }
+            }
+            finally { GUI.enabled = previous; }
+        }
+
         private void DrawWindow(int id)
         {
             GUILayout.BeginVertical();
@@ -430,9 +460,13 @@ namespace SolastaCoop
             if (party.Count > 0)
             {
                 int next = GUILayout.SelectionGrid(selected, party.Select(Read.Name).ToArray(), Math.Min(3, party.Count));
-                if (next != selected) { selected = next; follow = false; details = ""; nextRefresh = 0; }
+                if (next != selected)
+                {
+                    selected = next; follow = false; details = ""; nextRefresh = 0;
+                    autoFollow.SelectTarget(party[selected]);
+                }
             }
-            int newTab = GUILayout.Toolbar(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут" });
+            int newTab = GUILayout.Toolbar(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут", "Обмен" });
             if (newTab != tab) { tab = newTab; details = ""; scroll = Vector2.zero; }
             if (!String.IsNullOrEmpty(error)) GUILayout.Label("Ошибка чтения: " + error, textStyle);
             if (tab == 3) DrawNetwork();
@@ -440,6 +474,7 @@ namespace SolastaCoop
             else if (tab == 5) DrawCamera();
             else if (tab == 6) DrawTravel();
             else if (tab == 7) DrawLoot();
+            else if (tab == 8) DrawTransfer();
             else
             {
                 GUILayout.Label("Только просмотр. Список не учитывает все условия применения.", textStyle);
@@ -565,6 +600,25 @@ namespace SolastaCoop
             GUILayout.Label("Сеть\n" + diagnostics.LatestNetwork + "\n\nДальность\n" + diagnostics.LatestRange +
                 "\n\n" + diagnostics.Checks, textStyle);
             GUILayout.EndScrollView();
+        }
+
+        private void DrawTransfer()
+        {
+            GUILayout.Label("Передача предметов между персонажами", titleStyle);
+            bool unlimited = GUILayout.Toggle(ItemTransferRange.Enabled,
+                "Разрешить передачу вне стандартных 6 клеток");
+            if (unlimited != ItemTransferRange.Enabled) ItemTransferRange.SetEnabled(unlimited);
+            GUILayout.Label(ItemTransferRange.Status, textStyle);
+            GUILayout.Label("Патч изменяет только дистанционную проверку выбора получателя " +
+                "в окне инвентаря. Серверные проверки не изменяются. " +
+                "В сетевой игре сделайте сохранение перед передачей, " +
+                "не выполняйте её при рассинхроне.", textStyle);
+            GUILayout.Space(12);
+            GUILayout.Label("Автофоллоу камеры", titleStyle);
+            bool next = GUILayout.Toggle(autoFollow.Enabled,
+                "Следить камерой за выбранным персонажем вне боя");
+            if (next != autoFollow.Enabled) autoFollow.SetEnabled(next, selectedCharacter);
+            GUILayout.Label(autoFollow.Status + "\nЭто следование камеры, а не автоматические команды движения персонажа.", textStyle);
         }
 
         private void DrawCamera()

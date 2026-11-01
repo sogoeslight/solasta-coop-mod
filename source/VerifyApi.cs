@@ -135,6 +135,17 @@ public static class VerifyApi
         Check(type("CameraModeManual").GetMethod("AdjustOrbit", Flags) != null, "Native camera orbit update");
         Check(type("CameraModeManual").GetProperty("FreeLookCamera", Flags) != null, "Native FreeLook camera reference");
         Check(type("ICameraService").GetProperty("CurrentCameraController", Flags) != null, "Current camera controller lookup");
+        Check(type("CameraControllerLocation").GetMethods(Flags).Any(m =>
+            m.Name == "FollowCharacterForExploration" && m.GetParameters().Length == 2 &&
+            m.GetParameters()[0].ParameterType == type("GameLocationCharacter") &&
+            m.GetParameters()[1].ParameterType == typeof(bool)),
+            "Native camera follow API for exploration");
+        Check(type("CameraControllerLocation").GetMethods(Flags).Any(m =>
+            m.Name == "SwitchToManualExplorationCamera" && m.GetParameters().Length == 0),
+            "Native manual camera restore API");
+        Check(type("CharacterInspectionScreen").GetMethods(Flags).Any(m =>
+            m.Name == "RefreshCharactersTable" && m.GetParameters().Length == 0),
+            "Inventory character distance validation patch target");
         Assembly cinemachine = Assembly.LoadFrom(Path.Combine(managed, "Cinemachine.dll"));
         Type freeLook = cinemachine.GetType("Cinemachine.CinemachineFreeLook", true);
         FieldInfo orbits = freeLook.GetField("m_Orbits", Flags);

@@ -29,10 +29,11 @@ def main():
     command = [args.dotnet, args.csc, "/nologo", "/target:library", "/optimize+",
                "/deterministic+", "/nostdlib+", "/out:" + str(payload)]
     command += ["/reference:" + str(args.managed / (name + ".dll")) for name in refs]
+    command += ["/reference:" + str(source / "vendor/harmony/0Harmony.dll")]
     command += [source / "CoopView.cs", source / "PhotonTransport.cs", source / "HoverRange.cs",
                 source / "DiagnosticsLog.cs", source / "RuntimeDiagnostics.cs", source / "LogLocation.cs",
                 source / "ObserverHud.cs", source / "ObserverPreview.cs", source / "HarmonySupport.cs", source / "CameraZoom.cs",
-                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs"]
+                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "AutoFollow.cs", source / "ItemTransferRange.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs"]
     command += ["/resource:" + str(source / "vendor/harmony/0Harmony.dll") + ",SolastaCoop.Harmony"]
     run(command)
 
