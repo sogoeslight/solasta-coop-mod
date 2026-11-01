@@ -10,6 +10,7 @@ verify_retry = (root / 'VerifyConnectionRetry.cs').read_text()
 verify_hud = (root / 'VerifyObserverHud.cs').read_text()
 loot = (root / 'LootShare.cs').read_text()
 wire = (root / 'TravelWire.cs').read_text()
+combat = (root / 'CombatSpeed.cs').read_text()
 
 checks = {
     'CreateRoom bypasses retry capture': 'if (__originalMethod.Name == "CreateRoom")' in retry and 'never retried' in retry,
@@ -42,6 +43,14 @@ checks = {
     'Native loot source compiled': 'source / "LootShare.cs"' in (root / 'build.py').read_text(),
     'Safety disables HUD after game actor mapping errors': 'gameCharacterMappingError' in hud,
     'Battle snapshot records active turn identity': 'activeGuid=' in (root / 'RuntimeDiagnostics.cs').read_text(),
+    'Combat speed x2 default': 'Factor { get; private set; } = 2f' in combat,
+    'Combat speed restricts to battles': 'if (!inBattle || Factor <= 1f)' in combat,
+    'Combat speed does not change game timescale': 'Time.timeScale =' not in combat and 'Time.fixedDeltaTime =' not in combat,
+    'Combat animation and VFX acceleration': 'AccelerateAnimators();' in combat and 'AccelerateLegacyAnimations();' in combat and 'AccelerateParticles();' in combat,
+    'Combat speed restores on exit': 'CombatSpeed.RestoreAll();' in hud,
+    'Combat speed in build': 'source / "CombatSpeed.cs"' in (root / 'build.py').read_text(),
+    'Combat speed slider visible': 'GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f)' in hud,
+    'Unity animation dependencies': 'UnityEngine.AnimationModule' in (root / 'build.py').read_text() and 'UnityEngine.ParticleSystemModule' in (root / 'build.py').read_text(),
 }
 for name, ok in checks.items():
     print(('PASS' if ok else 'FAIL') + ' ' + name)

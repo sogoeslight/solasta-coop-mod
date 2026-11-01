@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.17.0")]
+[assembly: AssemblyVersion("0.1.18.0")]
 
 namespace Doorstop
 {
@@ -204,6 +204,7 @@ namespace SolastaCoop
             autoFastTravelVote.Dispose();
             ConnectionRetry.Cancel("Игра закрыта.");
             CameraZoom.RestoreAll();
+            CombatSpeed.RestoreAll();
             Log.Write("Overlay destroyed.");
             Instance = null;
         }
@@ -259,6 +260,7 @@ namespace SolastaCoop
         private void Update()
         {
             CameraZoom.Tick();
+            CombatSpeed.Tick();
             autoFastTravelVote.Tick();
             if (hostMoveShare != null) hostMoveShare.Tick();
             if (!autoFastTravelVote.VotePending) autoFollow.Tick();
@@ -475,7 +477,7 @@ namespace SolastaCoop
                     autoFollow.SelectTarget(party[selected]);
                 }
             }
-            int newTab = GUILayout.Toolbar(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут", "Обмен" });
+            int newTab = GUILayout.SelectionGrid(tab, new[] { "Действия", "Заклинания", "Способности", "Сеть", "Логи", "Камера", "Путь", "Лут", "Обмен", "Бой" }, 5);
             if (newTab != tab) { tab = newTab; details = ""; scroll = Vector2.zero; }
             if (!String.IsNullOrEmpty(error)) GUILayout.Label("Ошибка чтения: " + error, textStyle);
             if (tab == 3) DrawNetwork();
@@ -484,6 +486,7 @@ namespace SolastaCoop
             else if (tab == 6) DrawTravel();
             else if (tab == 7) DrawLoot();
             else if (tab == 8) DrawTransfer();
+            else if (tab == 9) DrawCombatSpeed();
             else
             {
                 GUILayout.Label("Только просмотр. Список не учитывает все условия применения.", textStyle);
@@ -640,6 +643,26 @@ namespace SolastaCoop
                 autoFollow.SelectAutomaticLeader();
             GUILayout.Label("Чтобы следовать за конкретным героем тиммейта, выберите его имя в верхней части F8. "+
                 "Если несколько чужих героев, режим авто выбирает того, кто сейчас идёт.", textStyle);
+        }
+
+        private void DrawCombatSpeed()
+        {
+            GUILayout.Label("Скорость анимаций боя: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
+            float factor = GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f);
+            if (Math.Abs(factor - CombatSpeed.Factor) > 0.125f)
+                CombatSpeed.SetFactor(factor);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("×1 (обычная)")) CombatSpeed.SetFactor(1f);
+            if (GUILayout.Button("×2 (по умолчанию)")) CombatSpeed.SetFactor(2f);
+            if (GUILayout.Button("×3")) CombatSpeed.SetFactor(3f);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(10);
+            GUILayout.Label(CombatSpeed.Status, textStyle);
+            GUILayout.Label("Ускоряет Animator, старые Animation и эффекты частиц только во время боя. " +
+                "Вне боя возвращает исходную скорость. Диапазон: ×1–×3, шаг ×0.25; при запуске ×2. " +
+                "Не ускоряет игровое время, сетевые таймеры, очередность ходов или движение по клеткам. " +
+                "Это экспериментальный визуальный режим для мультиплеера: ускорение событий анимации " +
+                "может повлиять на поведение игры. У обоих игроков рекомендуются одинаковые настройки.", textStyle);
         }
 
         private void DrawCamera()

@@ -25,7 +25,7 @@ def main():
     payload = output / "SolastaCoopView.dll"
     refs = ["mscorlib", "System", "System.Core", "UnityEngine", "UnityEngine.CoreModule",
             "UnityEngine.IMGUIModule", "UnityEngine.InputLegacyModule", "UnityEngine.TextRenderingModule",
-            "UnityEngine.ScreenCaptureModule", "UnityEngine.ImageConversionModule", "UnityEngine.UI", "UnityEngine.UIModule"]
+            "UnityEngine.ScreenCaptureModule", "UnityEngine.ImageConversionModule", "UnityEngine.AnimationModule", "UnityEngine.ParticleSystemModule", "UnityEngine.UI", "UnityEngine.UIModule"]
     command = [args.dotnet, args.csc, "/nologo", "/target:library", "/optimize+",
                "/deterministic+", "/nostdlib+", "/out:" + str(payload)]
     command += ["/reference:" + str(args.managed / (name + ".dll")) for name in refs]
@@ -33,7 +33,7 @@ def main():
     command += [source / "CoopView.cs", source / "PhotonTransport.cs", source / "HoverRange.cs",
                 source / "DiagnosticsLog.cs", source / "RuntimeDiagnostics.cs", source / "LogLocation.cs",
                 source / "ObserverHud.cs", source / "ObserverPreview.cs", source / "HarmonySupport.cs", source / "CameraZoom.cs",
-                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "AutoFollow.cs", source / "HostMoveShare.cs", source / "AutoFastTravelVote.cs", source / "ItemTransferRange.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs"]
+                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "AutoFollow.cs", source / "HostMoveShare.cs", source / "AutoFastTravelVote.cs", source / "ItemTransferRange.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs", source / "CombatSpeed.cs"]
     command += ["/resource:" + str(source / "vendor/harmony/0Harmony.dll") + ",SolastaCoop.Harmony"]
     run(command)
 
