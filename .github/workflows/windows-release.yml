@@ -114,37 +114,11 @@ jobs:
           if ((Get-Item $dll).Length -lt 10240) { throw 'winhttp.dll is unexpectedly small' }
           Write-Host "Compiled: $dll"
 
-      - name: Package release artifacts
-        shell: pwsh
-        env:
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path dist -Force | Out-Null
-          Copy-Item 'build\winhttp.dll' 'dist\winhttp.dll'
-          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            $env:GITHUB_REF_NAME
-          } elseif (-not [string]::IsNullOrWhiteSpace($env:RELEASE_VERSION)) {
-            $env:RELEASE_VERSION
-          } else {
-            'dev-' + $env:GITHUB_SHA.Substring(0, 8)
-          }
-          if ($version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
-            throw "Invalid version: $version"
-          }
-          $zip = "dist\solasta-coop-mod-$version-win-x64.zip"
-          Compress-Archive -Path 'build\winhttp.dll' -DestinationPath $zip -Force
-          $hashes = @('winhttp.dll', (Split-Path -Leaf $zip)) | ForEach-Object {
-            $hash = (Get-FileHash -Path (Join-Path 'dist' $_) -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $_"
-          }
-          $hashes | Set-Content 'dist\SHA256SUMS.txt'
-
-      - name: Save downloadable artifact
+      - name: Upload winhttp.dll artifact
         uses: actions/upload-artifact@v4
         with:
           name: solasta-coop-mod-windows-x64
-          path: dist/
+          path: build/winhttp.dll
           retention-days: 30
           if-no-files-found: error
 
@@ -162,6 +136,5 @@ jobs:
           }
           # gh release create exits with an error if the release already exists.
           # Never overwrite a published release's binaries.
-          $assets = @(Get-ChildItem dist -File | ForEach-Object { $_.FullName })
-          gh release create $tag @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title $tag --generate-notes --prerelease
+          gh release create $tag "build/winhttp.dll" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title $tag --generate-notes --prerelease
           if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
