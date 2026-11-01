@@ -11,7 +11,7 @@ namespace SolastaCoop
     internal sealed class PartyAutoFollow
     {
         private const float TickInterval = 0.3f;
-        private const float CommandCooldown = 1.0f;
+        private const float CommandCooldown = 2.5f;
         private const float DesiredDistance = 1.5f;
         private const float ResumeDistance = 1.9f;
         private const float RecentMovementSeconds = 4.0f;
@@ -30,10 +30,31 @@ namespace SolastaCoop
         private bool manualLeader;
         private float nextTick;
         private float nextDiagnostic;
+        private ulong hostMoveLeader;
+        private int hostMoveX, hostMoveY, hostMoveZ;
+        private float lastHostMoveAt;
+        private readonly Dictionary<ulong, int> lastHostMoveCommand = new Dictionary<ulong, int>();
+        private int hostMoveVersion;
+        private bool hostWaypointActive;
         private int issuedCommands;
         private int skippedBusy;
         private string lastError;
         internal bool Enabled { get; private set; }
+        internal static bool IsIssuingMove { get; private set; }
+        // Only host-issued movement commands create a new destination. A stale
+        // destination is discarded when the exploration mode changes.
+        internal void OnHostMove(ulong leader, int x, int y, int z)
+        {
+            if (!Enabled || leader == 0UL) return;
+            if (manualLeader && leaderGuid != leader) return;
+            hostMoveLeader = leader;
+            hostMoveX = x; hostMoveY = y; hostMoveZ = z;
+            lastHostMoveAt = Time.unscaledTime;
+            hostMoveVersion++;
+            hostWaypointActive = true;
+            if (!manualLeader) leaderGuid = leader;
+            Status = "Хост выбрал клетку (" + x + ", " + y + ", " + z + "). Следую по команде.";
+        }
         internal string Status { get; private set; } = "Выключено.";
 
         private static ulong Id(object character)
@@ -97,6 +118,8 @@ namespace SolastaCoop
             {
                 Enabled = false;
                 lastCommand.Clear();
+                lastHostMoveCommand.Clear();
+                hostWaypointActive = false;
                 observations.Clear();
                 Status = "Автоходьба выключена.";
                 return;
@@ -105,6 +128,8 @@ namespace SolastaCoop
             Enabled = true;
             nextTick = 0;
             lastCommand.Clear();
+            lastHostMoveCommand.Clear();
+            hostWaypointActive = false;
             observations.Clear();
             issuedCommands = 0;
             skippedBusy = 0;
@@ -116,6 +141,7 @@ namespace SolastaCoop
         {
             manualLeader = false;
             leaderGuid = 0UL;
+            hostWaypointActive = false;
             if (Enabled) Status = "Ведущий выбирается автоматически по движению.";
         }
 
@@ -210,12 +236,20 @@ namespace SolastaCoop
                     return;
                 }
                 ObserveRemoteCharacters(remotes);
-                object leader = ChooseLeader(remotes, locals);
+                // When the host provides destinations we do not continuously
+                // chase his current position: we act on the command itself.
+                bool followHostCommand = hostWaypointActive &&
+                    Time.unscaledTime - lastHostMoveAt < 75f;
+                object leader = followHostCommand
+                    ? remotes.FirstOrDefault(p => Id(p) == hostMoveLeader)
+                    : ChooseLeader(remotes, locals);
                 if (leader == null) return;
                 leaderGuid = Id(leader);
                 object leaderPosition = Read.Get(leader, "LocationPosition");
                 if (leaderPosition == null) return;
-                int lx = Coordinate(leaderPosition, "x"), ly = Coordinate(leaderPosition, "y"), lz = Coordinate(leaderPosition, "z");
+                int lx = followHostCommand ? hostMoveX : Coordinate(leaderPosition, "x");
+                int ly = followHostCommand ? hostMoveY : Coordinate(leaderPosition, "y");
+                int lz = followHostCommand ? hostMoveZ : Coordinate(leaderPosition, "z");
                 object commands = Read.Service("ICommandService");
                 object actionService = Read.Service("IGameLocationActionService");
                 if (commands == null || actionService == null)
@@ -243,7 +277,15 @@ namespace SolastaCoop
                         continue;
                     }
                     float last;
-                    if (lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < CommandCooldown) continue;
+                    int handledVersion;
+                    bool firstCommandForWaypoint = followHostCommand &&
+                        (!lastHostMoveCommand.TryGetValue(id, out handledVersion) || handledVersion != hostMoveVersion);
+                    // React immediately to each NEW host destination when free,
+                    // but don't repeatedly restart the same movement every frame.
+                    if (!firstCommandForWaypoint && lastCommand.TryGetValue(id, out last) &&
+                        Time.unscaledTime - last < CommandCooldown) continue;
+                    if (followHostCommand && !firstCommandForWaypoint &&
+                        lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < 7f) continue;
                     if (object.Equals(Read.Call(actionService, "IsCharacterActing", actor), true))
                     {
                         busy++;
@@ -266,13 +308,19 @@ namespace SolastaCoop
                     object orientation = Read.Get(actor, "Orientation");
                     object stance = Read.Call(actor, "GetMoveStance");
                     if (orientation == null || stance == null) continue;
-                    move.Invoke(commands, new object[] { actor, GridPosition(tx, ly, tz), orientation, 0f,
-                        stance, null, false, true });
+                    try
+                    {
+                        IsIssuingMove = true;
+                        move.Invoke(commands, new object[] { actor, GridPosition(tx, ly, tz), orientation, 0f,
+                            stance, null, false, true });
+                    }
+                    finally { IsIssuingMove = false; }
                     lastCommand[id] = Time.unscaledTime;
+                    if (followHostCommand) lastHostMoveCommand[id] = hostMoveVersion;
                     issuedCommands++;
                     sent++;
                 }
-                Status = "Следую за " + Read.Name(leader) + (manualLeader ? " (выбран)" : " (авто)") +
+                Status = (followHostCommand ? "Иду к точке хоста за " : "Следую за ") + Read.Name(leader) + (manualLeader ? " (выбран)" : " (авто)") +
                     ". Команд: " + issuedCommands + ", отправлено сейчас: " + sent +
                     ", уже рядом: " + near + ", заняты: " + busy + ".";
                 if (Log.Verbose && sent > 0 && Time.unscaledTime > nextDiagnostic)
