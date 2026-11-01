@@ -33,7 +33,7 @@ namespace SolastaCoop
         private Texture2D image;
         private GameObject inputShield;
         private RectTransform shieldArea;
-        private Rect preview = new Rect(35, 80, 1000, 620), imageRect;
+        private Rect preview = new Rect(16, 16, 1000, 620), imageRect;
         internal static bool Capturing { get; private set; }
         internal bool Enabled = true;
         internal string Status = "Просмотр путешествий включён. Новая версия нужна всем игрокам.";
@@ -294,10 +294,13 @@ namespace SolastaCoop
             if (!Enabled || Capturing || !online) return;
             if (host && localTravel) DrawPointers(new Rect(0, 0, UnityEngine.Screen.width, UnityEngine.Screen.height));
             if (host || !previewShown || image == null || DateTime.UtcNow - frameAt > TimeSpan.FromSeconds(5)) return;
-            preview.width = Math.Min(1000, UnityEngine.Screen.width - 20);
-            preview.height = Math.Min(620, UnityEngine.Screen.height - 20);
-            preview.x = Mathf.Clamp(preview.x, 0, UnityEngine.Screen.width - preview.width);
-            preview.y = Mathf.Clamp(preview.y, 0, UnityEngine.Screen.height - preview.height);
+            // Near fullscreen at every resolution, keeping a small safe border.
+            // The image below is letterboxed to preserve the host's aspect ratio.
+            float marginX = Mathf.Max(8f, UnityEngine.Screen.width * 0.015f);
+            float marginY = Mathf.Max(8f, UnityEngine.Screen.height * 0.025f);
+            preview = new Rect(marginX, marginY,
+                Mathf.Max(160f, UnityEngine.Screen.width - 2f * marginX),
+                Mathf.Max(120f, UnityEngine.Screen.height - 2f * marginY));
             preview = GUI.Window(487202, preview, DrawPreview, "Путешествие: экран хоста (только просмотр) | F6");
             UpdateInputShield();
         }

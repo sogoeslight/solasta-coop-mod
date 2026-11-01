@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.11.0")]
+[assembly: AssemblyVersion("0.1.12.0")]
 
 namespace Doorstop
 {
@@ -251,9 +251,6 @@ namespace SolastaCoop
             travelShare.Tick();
             lootShare.Tick();
             if (travelShare.ShouldCapture) StartCoroutine(travelShare.Capture());
-            if (lootShare.ShouldCapture && !travelShare.ShouldCapture) StartCoroutine(lootShare.Capture());
-            if (Input.GetKeyDown(KeyCode.F11)) lootShare.ToggleManual();
-            if (Input.GetKeyDown(KeyCode.F12)) lootShare.TogglePreview();
             if (Input.GetKeyDown(KeyCode.F6)) travelShare.TogglePreview();
             diagnostics.TravelStatus = travelShare.DiagnosticSummary;
             diagnostics.LootStatus = lootShare.Diagnostics;
@@ -397,9 +394,8 @@ namespace SolastaCoop
         }
         private void OnGUI()
         {
-            if (TravelShare.Capturing || LootShare.Capturing) return;
+            if (TravelShare.Capturing) return;
             travelShare.Draw();
-            lootShare.Draw();
             if (textStyle == null)
             {
                 textStyle = new GUIStyle(GUI.skin.label) { wordWrap = true, fontSize = 14, richText = false };
@@ -535,16 +531,13 @@ namespace SolastaCoop
 
         private void DrawLoot()
         {
-            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Показывать лут союзнику автоматически (только просмотр)");
+            GUILayout.Label("Нативное окно игры, НЕ трансляция экрана. Прототип, отключено по умолчанию.", textStyle);
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Синхронизировать просмотр сундуков и трупов (тестовая версия)");
             if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
-            bool detect = GUILayout.Toggle(lootShare.AutoDetect, "Автоматическое распознавание окна лута");
-            lootShare.AutoDetect = detect;
             GUILayout.Label(lootShare.Status, textStyle);
-            GUILayout.Label("Когда один участник открывает сундук, тело или контейнер, второму передаётся изображение игрового окна. " +
-                "Управление предметами остаётся исключительно у открывшего игрока. " +
-                "Распознавание зависит от конкретного интерфейса игры; F11 запускает и останавливает показ вручную.", textStyle);
-            if (GUILayout.Button("Начать / закончить показ текущего окна [F11]")) lootShare.ToggleManual();
-            if (GUILayout.Button("Показать / скрыть полученное окно [F12]")) lootShare.TogglePreview();
+            GUILayout.Label("Второму игроку открывается локальное штатное окно. " +
+                "Действия с предметами из удалённого окна заблокированы. F11 отключён.", textStyle);
+            if (GUILayout.Button("Закрыть полученное окно")) lootShare.ClosePreview();
             GUILayout.Label(lootShare.Diagnostics, textStyle);
         }
 

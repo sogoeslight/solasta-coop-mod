@@ -75,7 +75,7 @@ def main():
             print(result.stdout)
             failed.append(name)
     (source.parent / "validation.txt").write_text(
-        "Solasta Coop View 0.1.11\nAutomated local checks; no live game connection or Unity rendering tested.\n\n" +
+        "Solasta Coop View 0.1.12\nAutomated local checks; no live game connection or Unity rendering tested.\n\n" +
         "\n".join(reports), encoding="utf-8")
     raise SystemExit(bool(failed))
 
