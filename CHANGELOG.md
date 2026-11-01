@@ -2,6 +2,12 @@
 
 This project is a reconstructed source history from archived development snapshots. Changes below describe intended functionality, not confirmed multiplayer behavior or release certification.
 
+## 0.1.19 (experimental)
+- Automatically continue the native loading confirmation after loading a save or entering a location (LoadingModal), with a 0.65-second readiness delay and an F8 toggle.
+- Keep the existing fast-travel vote auto-accept as a separate feature; normal votes, warnings and dialogs are not touched.
+- Translate all mod-owned UI and status text to English.
+- Build and distribute only winhttp.dll through GitHub Actions and Releases.
+
 ## 0.1.18
 - Add configurable local combat animation playback from x1 to x3, default x2; no change to global time scale or Photon timers.
 

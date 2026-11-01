@@ -2,7 +2,7 @@
 
 **Experimental quality-of-life mod for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op**, focused on character observation, travel, inventory interaction, camera controls and diagnostics.
 
-**Current source snapshot: `0.1.18`** | Windows x64 | Automated Windows CI builds, no published binary release yet
+**Current version: `0.1.19` (experimental)** | Windows x64 | DLL built by GitHub Actions
 
 > [!WARNING]
 > Community experiment, **not affiliated with Tactical Adventures**. Features involving multiplayer commands, remote loot, auto-follow and combat animation timing are not verified in a live two-player test for this source snapshot. Back up the host save, use the same version on all players, and disable experimental features if the game desynchronizes.
@@ -18,6 +18,7 @@
 | World exploration | Locally controlled heroes follow a teammate's moves, including host waypoint messages and positional fallback | On-screen toggle / F8 | Movement is pathfinding-dependent; no control during combat/dialogues |
 | Travel | View host's travel display, approximate 97% × 95% screen area, synchronized UI preview | F6, F8 | Visual sharing, not desktop control |
 | Fast travel | Automatically accept **fast-travel votes only** | Enabled, F8 → Travel | Does not accept general host waiting or other voting dialogs |
+| Post-loading confirmation | Automatically press Continue on the **native LoadingModal** after a save or location loads | Enabled, F8 → Travel; 0.65-second ready delay | No synthetic keypresses; only when the native Continue button is interactive; does not accept dialogs or other votes |
 | Loot | Native chest/corpse/ground loot UI opens for the other participant; interactive looting using locally controlled heroes | Enabled, F8 → Loot | **Experimental:** UI-distance bypass does not guarantee server acceptance; duplication/race/desync possible |
 | Item transfer | Increase character-to-character transfer recipient range | Enabled, F8 → Transfer | Server-side range validation may still apply |
 | Combat animation | Visual Animator, legacy Animation and particle playback speed | **×2** default, F8 → Combat (×1–×3 by 0.25) | Does not alter real movement speed, turn logic or Photon timers; animation events may affect gameplay |
@@ -36,6 +37,8 @@
 | **F11** | **Disabled** (old screenshot-loot stream was removed after instability) |
 
 ## Windows CI and downloadable Releases
+
+Versioned experimental DLLs are distributed through [GitHub Releases](https://github.com/sogoeslight/solasta-coop-mod/releases). Install **only `winhttp.dll`** next to `Solasta.exe` on both computers.
 
 A Windows x64 build workflow is available in [GitHub Actions](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml). It compiles `winhttp.dll` and includes **only that DLL** inside the downloadable Actions artifact or, when a new version tag is provided, directly in [Releases](https://github.com/sogoeslight/solasta-coop-mod/releases). No extra mod ZIP or checksum file is generated.
 
@@ -131,4 +134,4 @@ The commit history in this repository is a **reconstruction from archived source
 - Harmony: bundled binary with its own license and [upstream provenance](source/vendor/harmony/UPSTREAM.txt).
 - Solasta / Unity game DLLs: **not redistributed**. You must supply them from your own installed game for compilation.
 
-**Status:** experimental, CI-compilable source, no guaranteed multiplayer compatibility or official support.
+**Status:** v0.1.19 experimental release, no guaranteed multiplayer compatibility or official support. Auto-continue is based on the game's native LoadingModal callbacks, and must still be validated in live co-op.

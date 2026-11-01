@@ -11,8 +11,15 @@ verify_hud = (root / 'VerifyObserverHud.cs').read_text(encoding="utf-8")
 loot = (root / 'LootShare.cs').read_text(encoding="utf-8")
 wire = (root / 'TravelWire.cs').read_text(encoding="utf-8")
 combat = (root / 'CombatSpeed.cs').read_text(encoding="utf-8")
+loading = (root / 'AutoLoadingProceed.cs').read_text(encoding="utf-8")
 
 checks = {
+    'Loading confirmation targets native modal only': 'Read.Type("LoadingModal")' in loading and
+        '"OnProceedToLocationCb"' in loading and '"OnUpdateHook"' in loading,
+    'Loading confirmation checks readiness': '"ReadyToProceed"' in loading and
+        '"IsInteractable"' in loading and 'ReadyDelaySeconds' in loading,
+    'Loading confirmation F8 setting': 'GUILayout.Toggle(autoLoadingProceed.Enabled' in hud,
+    'Loading confirmation compiled': 'source / "AutoLoadingProceed.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
     'CreateRoom bypasses retry capture': 'if (__originalMethod.Name == "CreateRoom")' in retry and 'never retried' in retry,
     'Only JoinRoom is replayed': 'if (request.Name != "JoinRoom")' in retry,
     'Native confirmation required': 'internal static void ConfirmErrorDismissed()' in retry,

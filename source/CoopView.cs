@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.18.0")]
+[assembly: AssemblyVersion("0.1.19.0")]
 
 namespace Doorstop
 {
@@ -170,6 +170,7 @@ namespace SolastaCoop
         private readonly PartyAutoFollow autoFollow = new PartyAutoFollow();
         private HostMoveShare hostMoveShare;
         private readonly AutoFastTravelVote autoFastTravelVote = new AutoFastTravelVote();
+        private readonly AutoLoadingProceed autoLoadingProceed = new AutoLoadingProceed();
         private static volatile bool gameCharacterMappingError;
         private string networkMessage = "Choose the transport for the next connection.";
 
@@ -186,6 +187,7 @@ namespace SolastaCoop
             observerHud.SetEnabled(true);
             lootShare.SetEnabled(true);
             autoFastTravelVote.Install();
+            autoLoadingProceed.Install();
             hostMoveShare = new HostMoveShare(autoFollow);
             try { diagnostics.Start(); }
             catch (Exception e) { Log.Error("core", "Start diagnostics", e); }
@@ -202,6 +204,7 @@ namespace SolastaCoop
             autoFollow.SetEnabled(false);
             if (hostMoveShare != null) hostMoveShare.Dispose();
             autoFastTravelVote.Dispose();
+            autoLoadingProceed.Dispose();
             ConnectionRetry.Cancel("Game closed.");
             CameraZoom.RestoreAll();
             CombatSpeed.RestoreAll();
@@ -581,7 +584,14 @@ namespace SolastaCoop
                 "Automatically accept fast-travel destination votes");
             if (acceptFastTravel != autoFastTravelVote.Enabled)
                 autoFastTravelVote.SetEnabled(acceptFastTravel);
-            GUILayout.Label(autoFastTravelVote.Status + "\nOther votes and confirmations are not affected.", textStyle);
+            GUILayout.Label(autoFastTravelVote.Status + "\nOther votes are not affected.", textStyle);
+            GUILayout.Space(12);
+            GUILayout.Label("Loading screens", titleStyle);
+            bool acceptLoading = GUILayout.Toggle(autoLoadingProceed.Enabled,
+                "Automatically continue after loading a save or location");
+            if (acceptLoading != autoLoadingProceed.Enabled) autoLoadingProceed.SetEnabled(acceptLoading);
+            GUILayout.Label(autoLoadingProceed.Status + "\nOnly the native post-loading prompt is confirmed. " +
+                "Dialogs, warnings, and multiplayer votes are not automatically accepted by this setting.", textStyle);
         }
 
         private void DrawLoot()
