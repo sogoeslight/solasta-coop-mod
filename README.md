@@ -35,6 +35,12 @@
 | **F10** | Write diagnostic report |
 | **F11** | **Disabled** (old screenshot-loot stream was removed after instability) |
 
+## Windows CI and downloadable Releases
+
+A Windows x64 build workflow is available in [GitHub Actions](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml). It can compile `winhttp.dll`, upload a downloadable Actions artifact, and publish binaries to [Releases](https://github.com/sogoeslight/solasta-coop-mod/releases) when a new version tag is supplied.
+
+**Setup is required before builds can run:** GitHub-hosted runners do not include Solasta's managed DLLs. The repository owner must supply legally usable private compilation references. See [CI build and release setup](docs/CI_RELEASES.md). This workflow has not yet been validated by a successful hosted compilation.
+
 ## Build from source (Windows)
 
 The repository deliberately does **not** include the game's proprietary assemblies, Unity binaries or a prebuilt `winhttp.dll`.
