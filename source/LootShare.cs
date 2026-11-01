@@ -32,9 +32,12 @@ namespace SolastaCoop
         private bool online, hooksInstalled, ignoreNative;
         private int localKind, remoteSender, sequence, incomingSequence;
         private string localHero, localContainer;
-        private DateTime openedAt, lastHello;
-        private object remoteModal, remoteCanvasGroup;
-        private bool previousInteractable, previousBlocksRaycasts;
+        private DateTime openedAt;
+        private object remoteModal;
+        private bool previousSlotsDisabled;
+        private Message pendingOpen;
+        private DateTime pendingSince;
+        private DateTime nextOpenAttempt;
         private int lastSender, lastSequence;
         private DateTime remoteOpenedAt;
 
@@ -44,7 +47,7 @@ namespace SolastaCoop
         {
             get { return "Native loot: enabled=" + Enabled + "; hooks=" + hooksInstalled +
                 "; connected=" + online + "; localKind=" + localKind + "; remote=" + remoteSender +
-                "; frames=none; F11=disabled"; }
+                "; pending=" + (pendingOpen != null) + "; status=" + Status + "; F11=disabled"; }
         }
 
         internal LootShare()
@@ -60,6 +63,7 @@ namespace SolastaCoop
                 if (online && localKind != 0) Send(new object[] { Magic, Close, ++sequence }, true);
                 CloseRemote();
                 localKind = 0;
+                pendingOpen = null;
                 Detach();
                 Enabled = false;
                 Status = "Нативный просмотр выключен, F11 отключён.";
@@ -103,6 +107,9 @@ namespace SolastaCoop
             PatchInteraction("ContainerLootModal", "OnLootAllCb", 0);
             PatchInteraction("ContainerLootModal", "HandleItemLoot", 4);
             PatchInteraction("InventoryPanel", "OnLootAllCb", 0);
+            PatchInteraction("LootEnumerationModal", "OnPointerUp", 1);
+            PatchInteraction("LootEnumerationModal", "OnSubmitPerformed", 1);
+            PatchInteraction("ContainerLootModal", "OnInventoryCb", 0);
             hooksInstalled = true;
             Log.Write("Native loot hooks installed. Feature disabled by default. No screen capture.");
         }
@@ -252,33 +259,21 @@ namespace SolastaCoop
             }
             if (hero == null || kind == OpenContainer && container == null)
             {
-                Log.Event("loot", "WARN", "Native loot object is not in local game state; skipped.");
+                Status = "Сундук или персонаж пока не найден локально, повторяю...";
                 return;
             }
             object modal = Modal(kind);
-            if (modal == null || IsVisible(modal) || localKind != 0) return;
+            if (modal == null) { Status = "Штатный экран лута отсутствует в GuiManager."; return; }
+            if (IsVisible(modal) || localKind != 0) { Status = "Ожидание закрытия локального окна лута."; return; }
             try
             {
                 ignoreNative = true;
                 if (kind == OpenContainer) Read.Call(modal, "ShowContainerLoot", hero, container);
                 else Read.Call(modal, "ShowProximityLoot", hero);
-                // Native UI and native item slots are used, but remote interactions are blocked.
-                object group = Read.Get(modal, "CanvasGroup");
-                if (group != null)
-                {
-                    // Preserve the native UI so its slots and tooltips remain real Unity UI.
-                    // Keep raycasts blocked from falling through to gameplay underneath.
-                    object interactable = Read.Get(group, "interactable");
-                    object blocks = Read.Get(group, "blocksRaycasts");
-                    if (interactable is bool && blocks is bool)
-                    {
-                        remoteCanvasGroup = group;
-                        previousInteractable = (bool)interactable;
-                        previousBlocksRaycasts = (bool)blocks;
-                        ObserverHud.SetMember(group, "interactable", false);
-                        ObserverHud.SetMember(group, "blocksRaycasts", true);
-                    }
-                }
+                // Do not disable CanvasGroup: that prevented native slot hovering and navigation.
+                // Patch loot actions instead; never issue gameplay inventory RPCs from the preview.
+                previousSlotsDisabled = Object.Equals(Read.Get(modal, "ShouldDisableSlots"), true);
+                ObserverHud.SetMember(modal, "ShouldDisableSlots", true);
                 remoteModal = modal;
                 remoteOpenedAt = DateTime.UtcNow;
                 remoteSender = sender;
@@ -290,15 +285,10 @@ namespace SolastaCoop
         }
         private void CloseRemote()
         {
-            if (remoteCanvasGroup != null)
+            if (remoteModal != null)
             {
-                try
-                {
-                    ObserverHud.SetMember(remoteCanvasGroup, "interactable", previousInteractable);
-                    ObserverHud.SetMember(remoteCanvasGroup, "blocksRaycasts", previousBlocksRaycasts);
-                }
-                catch (Exception ex) { Log.Error("loot", "Restore native loot canvas", ex); }
-                remoteCanvasGroup = null;
+                try { ObserverHud.SetMember(remoteModal, "ShouldDisableSlots", previousSlotsDisabled); }
+                catch (Exception ex) { Log.Error("loot", "Restore native loot slots", ex); }
             }
             if (remoteModal != null)
             {
@@ -324,12 +314,16 @@ namespace SolastaCoop
             lastSequence = seq;
             if (kind == Close)
             {
+                if (pendingOpen != null && pendingOpen.Sender == message.Sender) pendingOpen = null;
                 if (remoteSender == message.Sender) CloseRemote();
                 return;
             }
-            if (remoteSender != 0 || localKind != 0) return;
-            OpenRemote(kind, (string)message.Data[3], (string)message.Data[4], message.Sender);
-            if (remoteSender == message.Sender) incomingSequence = seq;
+            if (remoteSender != 0) return;
+            pendingOpen = message;
+            pendingSince = DateTime.UtcNow;
+            nextOpenAttempt = DateTime.MinValue;
+            Status = "Получен сигнал открытия, ищу локальные объекты лута.";
+            Log.Write("Native loot open received from actor=" + message.Sender + "; kind=" + kind + "; seq=" + seq);
         }
         internal void Tick()
         {
@@ -342,6 +336,7 @@ namespace SolastaCoop
                 if (!Enabled || !online || !Object.ReferenceEquals(room, nextRoom))
                 {
                     if (remoteSender != 0) CloseRemote();
+                    pendingOpen = null;
                     localKind = 0;
                     if (!online || !Enabled) Detach();
                     room = online ? nextRoom : null;
@@ -352,6 +347,26 @@ namespace SolastaCoop
                 Message[] messages;
                 lock (sync) { messages = inbox.ToArray(); inbox.Clear(); }
                 foreach (Message message in messages) Process(message);
+                if (pendingOpen != null)
+                {
+                    if ((DateTime.UtcNow - pendingSince).TotalSeconds > 12)
+                    {
+                        Status = "Не удалось открыть настоящий UI лута за 12 секунд. См. loot-лог.";
+                        Log.Event("loot", "WARN", "Native loot open timed out: " + Diagnostics);
+                        pendingOpen = null;
+                    }
+                    else if (DateTime.UtcNow >= nextOpenAttempt && remoteSender == 0 && localKind == 0)
+                    {
+                        nextOpenAttempt = DateTime.UtcNow.AddMilliseconds(450);
+                        int kind = (int)pendingOpen.Data[1];
+                        OpenRemote(kind, (string)pendingOpen.Data[3], (string)pendingOpen.Data[4], pendingOpen.Sender);
+                        if (remoteSender == pendingOpen.Sender)
+                        {
+                            incomingSequence = (int)pendingOpen.Data[2];
+                            pendingOpen = null;
+                        }
+                    }
+                }
                 if (remoteSender != 0 && (!Member(remoteSender) ||
                     (DateTime.UtcNow - remoteOpenedAt).TotalSeconds > 1.5 && !IsVisible(remoteModal)))
                     CloseRemote();
@@ -363,8 +378,8 @@ namespace SolastaCoop
                         Send(new object[] { Magic, Close, ++sequence }, true);
                     }
                 }
-                if (remoteSender == 0 && localKind == 0)
-                    Status = "Ожидание открытия сундука или трупа. Никакого стрима.";
+                if (remoteSender == 0 && localKind == 0 && pendingOpen == null)
+                    Status = "Жду сундук или труп. Реальное окно игры, без стрима.";
             }
             catch (Exception ex)
             {
@@ -372,7 +387,7 @@ namespace SolastaCoop
                 SetEnabled(false);
             }
         }
-        internal void ClosePreview() { CloseRemote(); }
+        internal void ClosePreview() { pendingOpen = null; CloseRemote(); }
         public void Dispose()
         {
             SetEnabled(false);

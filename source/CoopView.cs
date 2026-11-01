@@ -167,7 +167,7 @@ namespace SolastaCoop
         private readonly ObserverHud observerHud = new ObserverHud();
         private readonly TravelShare travelShare = new TravelShare();
         private readonly LootShare lootShare = new LootShare();
-        private readonly CameraAutoFollow autoFollow = new CameraAutoFollow();
+        private readonly PartyAutoFollow autoFollow = new PartyAutoFollow();
         private static volatile bool gameCharacterMappingError;
         private string networkMessage = "Выберите транспорт следующего подключения.";
 
@@ -182,6 +182,7 @@ namespace SolastaCoop
             try { ConnectionRetry.Install(); }
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
             observerHud.SetEnabled(true);
+            lootShare.SetEnabled(true);
             try { diagnostics.Start(); }
             catch (Exception e) { Log.Error("core", "Start diagnostics", e); }
             Log.Write("CoopView " + BuildInfo.Version + " ready; F7=range, F8=panel, F9=verbose, F10=report.");
@@ -427,7 +428,7 @@ namespace SolastaCoop
                 Rect rect = new Rect(Math.Max(8, Screen.width - 238), 14, 228, 34);
                 bool ready = Read.Get(Read.Type("Gui"), "Battle") == null;
                 GUI.enabled = previous && ready;
-                string label = autoFollow.Enabled ? "Автофоллоу камеры: ВКЛ" : "Автофоллоу камеры: ВЫКЛ";
+                string label = autoFollow.Enabled ? "Автоходьба: ВКЛ" : "Автоходьба: ВЫКЛ";
                 if (GUI.Button(rect, label))
                     autoFollow.SetEnabled(!autoFollow.Enabled, selectedCharacter);
             }
@@ -436,7 +437,7 @@ namespace SolastaCoop
                 if (Time.unscaledTime > nextFollowGuiError)
                 {
                     nextFollowGuiError = Time.unscaledTime + 15f;
-                    Log.Error("core", "Camera follow button", ex);
+                    Log.Error("core", "Party auto-follow button", ex);
                 }
             }
             finally { GUI.enabled = previous; }
@@ -567,8 +568,8 @@ namespace SolastaCoop
 
         private void DrawLoot()
         {
-            GUILayout.Label("Нативное окно игры, НЕ трансляция экрана. Прототип, отключено по умолчанию.", textStyle);
-            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Синхронизировать просмотр сундуков и трупов (тестовая версия)");
+            GUILayout.Label("Нативное окно игры, НЕ трансляция экрана. Включено по умолчанию, тестовая версия.", textStyle);
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Синхронизировать штатный интерфейс сундуков и трупов");
             if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
             GUILayout.Label(lootShare.Status, textStyle);
             GUILayout.Label("Второму игроку открывается локальное штатное окно. " +
@@ -614,11 +615,11 @@ namespace SolastaCoop
                 "В сетевой игре сделайте сохранение перед передачей, " +
                 "не выполняйте её при рассинхроне.", textStyle);
             GUILayout.Space(12);
-            GUILayout.Label("Автофоллоу камеры", titleStyle);
+            GUILayout.Label("Автоходьба персонажей", titleStyle);
             bool next = GUILayout.Toggle(autoFollow.Enabled,
-                "Следить камерой за выбранным персонажем вне боя");
+                "Мои персонажи следуют за героем тиммейта (автоходьба)");
             if (next != autoFollow.Enabled) autoFollow.SetEnabled(next, selectedCharacter);
-            GUILayout.Label(autoFollow.Status + "\nЭто следование камеры, а не автоматические команды движения персонажа.", textStyle);
+            GUILayout.Label(autoFollow.Status + "\nТолько в исследовании, только мои герои. Отключайте перед сюжетными сценами.", textStyle);
         }
 
         private void DrawCamera()
