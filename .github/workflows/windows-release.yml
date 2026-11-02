@@ -68,19 +68,11 @@ jobs:
           $unpack = Join-Path $temp 'managed'
           New-Item -ItemType Directory -Force -Path $temp | Out-Null
 
-          if (-not [string]::IsNullOrWhiteSpace($env:SOLASTA_REFS_TOKEN)) {
-            # Preferred source. This private repository is never published.
-            $env:GH_TOKEN = $env:SOLASTA_REFS_TOKEN
-            $sourceRepository = 'sogoeslight/solasta-build-refs'
-          } else {
-            # Temporary fallback only while the mod repository remains private.
-            $visibility = gh api "repos/$env:GITHUB_REPOSITORY" --jq '.private'
-            if ($LASTEXITCODE -ne 0 -or "$visibility".Trim() -ne 'true') {
-              throw 'SOLASTA_REFS_TOKEN is required for public repository builds. See docs/CI_RELEASES.md'
-            }
-            $sourceRepository = $env:GITHUB_REPOSITORY
+          if ([string]::IsNullOrWhiteSpace($env:SOLASTA_REFS_TOKEN)) {
+            throw 'Missing SOLASTA_REFS_TOKEN. Configure the read-only token for the private solasta-build-refs repository.'
           }
-
+          $env:GH_TOKEN = $env:SOLASTA_REFS_TOKEN
+          $sourceRepository = 'sogoeslight/solasta-build-refs'
           gh release download ci-build-refs --repo $sourceRepository --pattern 'SolastaManagedRefs.zip' --dir $temp
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $archive)) {
             throw "Missing private reference archive in $sourceRepository. See docs/CI_RELEASES.md"
