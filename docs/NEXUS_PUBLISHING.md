@@ -29,10 +29,10 @@ The file uploader supports **updates to an existing Nexus Main File**, not creat
 1. Locate the **File ID**, not just the Mod ID, on the Nexus mod's Files tab. Select **Advanced** or inspect the file details in **Manage Files**.
 2. Generate a personal API key in [Nexus Mods API Access](https://www.nexusmods.com/settings/api-keys).
 3. In [GitHub Actions secrets](https://github.com/sogoeslight/solasta-coop-mod/settings/secrets/actions), create a repository **secret** called `NEXUSMODS_API_KEY`, containing the key. Never paste it into an issue, commit, discussion or chat.
-4. In [GitHub Actions variables](https://github.com/sogoeslight/solasta-coop-mod/settings/variables/actions), create a repository **variable** called `NEXUSMODS_FILE_ID` and set it to the numeric existing Main File ID.
-5. Open [Upload release to Nexus Mods](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/nexus-upload.yml), select **Run workflow**, and type a **new** release version without the `v` prefix, such as `0.1.21`.
+4. In [GitHub Actions variables](https://github.com/sogoeslight/solasta-coop-mod/settings/variables/actions), create a repository **variable** called `NEXUSMODS_FILE_ID` and set it to the existing Main File ID from Nexus Mods. This is NOT the game-scoped mod page number (301).
+5. Open [Upload release to Nexus Mods](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/nexus-upload.yml), select **Run workflow**, and type a **new** release version without the `v` prefix, such as `0.1.21`. Leave **dry_run = true** for an initial validation-only run. After the dry run succeeds, rerun with **dry_run = false** to upload.
 
-The workflow downloads `winhttp.dll` from that GitHub Release, creates a one-file ZIP, then uses [Nexus-Mods/upload-action](https://github.com/Nexus-Mods/upload-action) to publish it to the existing Nexus file.
+The workflow first checks the Nexus file's existing versions via API v3 and aborts if the requested version already exists. It also requires the versioned GitHub Release to exist and contain `winhttp.dll`. It downloads that DLL, creates a one-file ZIP, and uses [Nexus-Mods/upload-action](https://github.com/Nexus-Mods/upload-action) to publish it to the existing Nexus file only when **dry_run = false**. If the Nexus version query fails, it aborts rather than risking a duplicate upload.
 
 **Do not run the workflow for version 0.1.20 after uploading that version manually.** That could upload an unnecessary duplicate. Start automation on the next new version.
 
