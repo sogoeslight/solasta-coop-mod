@@ -7,6 +7,16 @@
 > [!WARNING]
 > Community experiment, **not affiliated with Tactical Adventures**. Features involving multiplayer commands, remote loot, auto-follow and combat animation timing are not verified in a live two-player test for this source snapshot. Back up the host save, use the same version on all players, and disable experimental features if the game desynchronizes.
 
+## Table of contents
+
+- [Features](#features)
+- [Key bindings](#key-bindings)
+- [Installation](#installation)
+- [Build from source (Windows)](#build-from-source-windows)
+- [Testing and troubleshooting](#testing-and-troubleshooting)
+- [Repository layout](#repository-layout)
+- [Source provenance and licenses](#source-provenance-and-licenses)
+
 ## Features
 
 | Area | Capability | Default / control | Important limitations |
@@ -25,7 +35,7 @@
 | Network | Opt-in Photon TCP choice and controlled retries of **JoinRoom**, with explicit acknowledgement | F8 → Network | Does not rerun CreateRoom; cannot replace network-level DPI tools |
 | Troubleshooting | Connection/turn diagnostics, logs and diagnostic report | F9 verbose, F10 report | Logs do not automatically repair desync |
 
-### Key bindings
+## Key bindings
 
 | Key | Action |
 | --- | --- |
@@ -36,13 +46,15 @@
 | **F10** | Write diagnostic report |
 | **F11** | **Disabled** (old screenshot-loot stream was removed after instability) |
 
-## Windows CI and downloadable Releases
+## Installation
 
-Versioned experimental DLLs are distributed through [GitHub Releases](https://github.com/sogoeslight/solasta-coop-mod/releases). Install **only `winhttp.dll`** next to `Solasta.exe` on both computers.
+1. Close Solasta on both computers.
+2. Download `winhttp.dll` from the [latest GitHub Release](https://github.com/sogoeslight/solasta-coop-mod/releases/latest).
+3. Copy `winhttp.dll` into the Solasta installation folder, next to `Solasta.exe`.
+4. Install the same mod version for **all co-op players** and back up the host save before testing.
+5. Launch the game and press **F8** to configure the mod.
 
-A Windows x64 build workflow is available in [GitHub Actions](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml). It compiles `winhttp.dll` and includes **only that DLL** inside the downloadable Actions artifact or, when a new version tag is provided, directly in [Releases](https://github.com/sogoeslight/solasta-coop-mod/releases). No extra mod ZIP or checksum file is generated.
-
-**Build references:** GitHub-hosted runners do not include Solasta's managed DLLs. The repository owner must supply legally usable private compilation references and refresh them when the referenced game assemblies change. See [CI build and release setup](docs/CI_RELEASES.md). A Windows hosted build has completed successfully, but runtime and multiplayer compatibility remain unverified.
+**Do not replace Windows' system `winhttp.dll`.** The mod uses a local proxy DLL placed only in the game directory.
 
 ## Build from source (Windows)
 
@@ -77,16 +89,6 @@ Alternatively, set the `SOLASTA_MANAGED` environment variable or use the script'
 
 Successful output: **`build/winhttp.dll`**. The script must actually produce this file; a `Write-Host` message alone does not indicate success.
 
-### Install
-
-1. Quit Solasta on both computers.
-2. Back up any existing `winhttp.dll` in the **game root** (the folder containing `Solasta.exe`).
-3. Copy the newly built `build/winhttp.dll` into the game root.
-4. Have **both players install the same mod version** and make a backup of the host save.
-5. Launch the game and use F8 to configure behavior.
-
-**Do not overwrite Windows' system `winhttp.dll`.** The project uses a local proxy DLL in the game's installation directory.
-
 ## Testing and troubleshooting
 
 **Static source checks** (do not compile or launch the game):
@@ -120,10 +122,6 @@ build-windows.ps1            Windows build entry point
 .github/workflows/           Lightweight source validation (no game libraries)
 docs/                        Architecture, troubleshooting, publishing notes
 ```
-
-## Publishing to GitHub
-
-To preserve all reconstructed commits, see [GitHub publishing instructions](docs/PUBLISHING.md). The source-only snapshot is tagged `v0.1.18-source`.
 
 ## Source provenance and licenses
 
