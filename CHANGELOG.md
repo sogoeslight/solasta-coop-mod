@@ -2,6 +2,13 @@
 
 This project is a reconstructed source history from archived development snapshots. Changes below describe intended functionality, not confirmed multiplayer behavior or release certification.
 
+## 0.1.20 (experimental)
+- Rename the mod to Solasta Coop Mod throughout the player-facing interface, logs, build output and documentation.
+- Simplify F8 settings: short toggle labels and concise descriptions, without experimental warnings in the overlay.
+- Add explicit toggles for combat animation acceleration, extended camera zoom and host waypoint sharing.
+- Add a TCP transport toggle, while keeping room-join retries independently configurable.
+- Preserve existing co-op packet identifiers to avoid unnecessary protocol changes.
+
 ## 0.1.19 (experimental)
 - Automatically continue the native loading confirmation after loading a save or entering a location (LoadingModal), with a 0.65-second readiness delay and an F8 toggle.
 - Keep the existing fast-travel vote auto-accept as a separate feature; normal votes, warnings and dialogs are not touched.

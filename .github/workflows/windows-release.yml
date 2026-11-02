@@ -125,7 +125,7 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' || contains(github.event.head_commit.message, '[release v0.1.19]') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' || contains(github.event.head_commit.message, '[release v0.1.20]') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -137,17 +137,17 @@ jobs:
           } elseif (-not [string]::IsNullOrWhiteSpace($env:RELEASE_VERSION)) {
             $env:RELEASE_VERSION
           } else {
-            'v0.1.19'
+            'v0.1.20'
           }
           if ($tag -notmatch '^v\d+\.\d+\.\d+([.-][A-Za-z0-9.-]+)?$') {
-            throw 'Release version should be v0.1.18 or v0.1.19-beta.1'
+            throw 'Release version should be v0.1.20 or v0.1.21-beta.1'
           }
           # gh release create exits with an error if the release already exists.
           # Never overwrite a published release's binaries.
-          $releaseNotes = if ($tag -eq 'v0.1.19') {
-            @('--notes-file', 'docs/RELEASE_v0.1.19.md')
+          $releaseNotes = if ($tag -eq 'v0.1.20') {
+            @('--notes-file', 'docs/RELEASE_v0.1.20.md')
           } else {
             @('--generate-notes')
           }
-          gh release create $tag "build/winhttp.dll" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title $tag @releaseNotes --latest
+          gh release create $tag "build/winhttp.dll" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Solasta Coop Mod $tag" @releaseNotes --latest
           if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }

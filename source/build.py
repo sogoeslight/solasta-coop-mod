@@ -22,7 +22,7 @@ def main():
     source = Path(__file__).resolve().parent
     output = source.parent / "build"
     output.mkdir(exist_ok=True)
-    payload = output / "SolastaCoopView.dll"
+    payload = output / "SolastaCoopMod.dll"
     refs = ["mscorlib", "System", "System.Core", "UnityEngine", "UnityEngine.CoreModule",
             "UnityEngine.IMGUIModule", "UnityEngine.InputLegacyModule", "UnityEngine.TextRenderingModule",
             "UnityEngine.ScreenCaptureModule", "UnityEngine.ImageConversionModule", "UnityEngine.AnimationModule", "UnityEngine.ParticleSystemModule", "UnityEngine.UI", "UnityEngine.UIModule"]

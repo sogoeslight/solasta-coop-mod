@@ -18,7 +18,7 @@ namespace SolastaCoop
             string downloads = null;
             try { downloads = knownDownloads(); } catch { }
             if (String.IsNullOrEmpty(downloads)) downloads = Path.Combine(profile, "Downloads");
-            return Path.Combine(downloads, "SolastaCoopView");
+            return Path.Combine(downloads, "SolastaCoopMod");
         }
 
         internal static string DirectoryPath

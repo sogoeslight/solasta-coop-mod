@@ -32,7 +32,19 @@ namespace SolastaCoop
         private ulong lastCharacter;
         private int lastX, lastY, lastZ, sequence, receivedSequence;
         private int receivedFrom;
+        internal bool Enabled { get; private set; } = true;
         internal string Status { get; private set; } = "Waiting for a Photon connection.";
+
+        internal void SetEnabled(bool enabled)
+        {
+            Enabled = enabled;
+            if (!enabled)
+            {
+                lock (gate) incoming.Clear();
+                Detach();
+            }
+            Status = enabled ? "Host waypoint sharing enabled." : "Host waypoint sharing disabled.";
+        }
 
         internal HostMoveShare(PartyAutoFollow follower)
         {
@@ -124,7 +136,7 @@ namespace SolastaCoop
 
         private void MoveIssued(object actor, object position)
         {
-            if (!hookInstalled || !Online() || !object.Equals(Read.Get(photon, "IsMasterClient"), true) ||
+            if (!Enabled || !hookInstalled || !Online() || !object.Equals(Read.Get(photon, "IsMasterClient"), true) ||
                 PartyAutoFollow.IsIssuingMove || actor == null || position == null || LocalCharacter(actor) != true ||
                 Read.Get(Read.Type("Gui"), "Battle") != null) return;
             ulong guid = GuidOf(actor);
@@ -167,7 +179,7 @@ namespace SolastaCoop
         {
             try
             {
-                if (!object.Equals(Read.Get(evt, "Code"), EventCode)) return;
+                if (!Enabled || !object.Equals(Read.Get(evt, "Code"), EventCode)) return;
                 object[] data = Read.Get(evt, "CustomData") as object[];
                 object sender = Read.Get(evt, "Sender");
                 if (!(sender is int) || data == null || data.Length != 6 ||
@@ -189,6 +201,11 @@ namespace SolastaCoop
         internal void Tick()
         {
             if (disabled) return;
+            if (!Enabled)
+            {
+                Detach();
+                return;
+            }
             try
             {
                 photon = Read.Type("Photon.Pun.PhotonNetwork");

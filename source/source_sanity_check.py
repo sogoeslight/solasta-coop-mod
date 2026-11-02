@@ -56,7 +56,20 @@ checks = {
     'Combat animation and VFX acceleration': 'AccelerateAnimators();' in combat and 'AccelerateLegacyAnimations();' in combat and 'AccelerateParticles();' in combat,
     'Combat speed restores on exit': 'CombatSpeed.RestoreAll();' in hud,
     'Combat speed in build': 'source / "CombatSpeed.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
-    'Combat speed slider visible': 'GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f)' in hud,
+    'Combat speed slider visible': 'GUILayout.HorizontalSlider(CombatSpeed.Factor, 1.25f, 3f)' in hud,
+    'All optional features have toggles': all(value in hud for value in [
+        'GUILayout.Toggle(follow,', 'GUILayout.Toggle(observerHud.Enabled,',
+        'GUILayout.Toggle(DetailedTooltips.Enabled,', 'GUILayout.Toggle(showHoverRange,',
+        'GUILayout.Toggle(tcp,', 'GUILayout.Toggle(ConnectionRetry.Enabled,',
+        'GUILayout.Toggle(travelShare.Enabled,', 'GUILayout.Toggle(autoFastTravelVote.Enabled,',
+        'GUILayout.Toggle(autoLoadingProceed.Enabled,', 'GUILayout.Toggle(lootShare.Enabled,',
+        'GUILayout.Toggle(Log.Verbose,', 'GUILayout.Toggle(ItemTransferRange.Enabled,',
+        'GUILayout.Toggle(autoFollow.Enabled,', 'GUILayout.Toggle(hostMoveShare.Enabled,',
+        'GUILayout.Toggle(speedEnabled,', 'GUILayout.Toggle(zoomEnabled,'
+    ]),
+    'No experimental warnings in overlay': 'experimental' not in hud.lower(),
+    'Renamed overlay': '"Solasta Coop Mod "' in hud,
+    'Managed output renamed': 'SolastaCoopMod.dll' in (root / 'build.py').read_text(encoding="utf-8"),
     'Unity animation dependencies': 'UnityEngine.AnimationModule' in (root / 'build.py').read_text(encoding="utf-8") and 'UnityEngine.ParticleSystemModule' in (root / 'build.py').read_text(encoding="utf-8"),
     'English-only mod source': not any(any('\u0400' <= c <= '\u04ff' for c in p.read_text(encoding='utf-8')) for p in root.glob('*.cs')),
 }

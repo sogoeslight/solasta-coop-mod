@@ -29,7 +29,7 @@ namespace SolastaCoop
             methodType = harmony.GetType("HarmonyLib.HarmonyMethod", true);
             patch = harmonyType.GetMethods().FirstOrDefault(m => m.Name == "Patch" && m.GetParameters().Length == 5);
             if (patch == null) throw new MissingMethodException("Harmony.Patch");
-            patcher = Activator.CreateInstance(harmonyType, new object[] { "SolastaCoopView." + BuildInfo.Version });
+            patcher = Activator.CreateInstance(harmonyType, new object[] { "SolastaCoopMod." + BuildInfo.Version });
             Version = harmony.GetName().Version.ToString();
         }
 

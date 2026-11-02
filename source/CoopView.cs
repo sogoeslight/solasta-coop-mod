@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.19.0")]
+[assembly: AssemblyVersion("0.1.20.0")]
 
 namespace Doorstop
 {
@@ -29,7 +29,7 @@ namespace Doorstop
             if (SolastaCoop.CoopView.Instance != null) return;
             try
             {
-                GameObject go = new GameObject("SolastaCoopView");
+                GameObject go = new GameObject("SolastaCoopMod");
                 UnityEngine.Object.DontDestroyOnLoad(go);
                 go.AddComponent<SolastaCoop.CoopView>();
                 SolastaCoop.Log.Write("Overlay created on sceneLoaded.");
@@ -149,6 +149,8 @@ namespace SolastaCoop
         private Rect window = new Rect(25, 60, 590, 600);
         private bool visible = true, follow = true;
         private int tab, selected;
+        private float preferredCameraZoom = 1.4f;
+        private float preferredCombatSpeed = 2f;
         private float nextRefresh;
         private Vector2 scroll;
         private string heading = "Load a save or start a new game.", error = "", details = "";
@@ -191,7 +193,7 @@ namespace SolastaCoop
             hostMoveShare = new HostMoveShare(autoFollow);
             try { diagnostics.Start(); }
             catch (Exception e) { Log.Error("core", "Start diagnostics", e); }
-            Log.Write("CoopView " + BuildInfo.Version + " ready; F7=range, F8=panel, F9=verbose, F10=report.");
+            Log.Write("CoopMod " + BuildInfo.Version + " ready; F7=range, F8=panel, F9=verbose, F10=report.");
         }
         private void OnDestroy()
         {
@@ -218,7 +220,7 @@ namespace SolastaCoop
         {
             string lower = (condition ?? "").ToLowerInvariant();
             bool related = lower.Contains("photon") || lower.Contains("socket") || lower.Contains("network") ||
-                lower.Contains("disconnect") || lower.Contains("timeout") || lower.Contains("coopview") || lower.Contains("doorstop");
+                lower.Contains("disconnect") || lower.Contains("timeout") || lower.Contains("coopmod") || lower.Contains("doorstop");
             if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
                 {
                 if (lower.Contains("couldn't recover character used in action")) gameCharacterMappingError = true;
@@ -430,7 +432,7 @@ namespace SolastaCoop
             window.height = Math.Min(650, Screen.height - 10);
             window.x = Mathf.Clamp(window.x, 0, Math.Max(0, Screen.width - window.width));
             window.y = Mathf.Clamp(window.y, 0, Math.Max(0, Screen.height - window.height));
-            window = GUI.Window(487201, window, DrawWindow, "Solasta Coop View " + BuildInfo.Version + "  |  F8");
+            window = GUI.Window(487201, window, DrawWindow, "Solasta Coop Mod " + BuildInfo.Version + "  |  F8");
         }
         private void DrawAutoFollowButton()
         {
@@ -460,16 +462,16 @@ namespace SolastaCoop
         {
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
-            bool newFollow = GUILayout.Toggle(follow, "Follow teammate turns");
+            bool newFollow = GUILayout.Toggle(follow, "Follow active teammate turns");
             if (newFollow != follow) { follow = newFollow; Log.Write("Follow active ally=" + follow); }
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Hide", GUILayout.Width(70))) SetVisible(false);
             GUILayout.EndHorizontal();
-            bool nativeHud = GUILayout.Toggle(observerHud.Enabled, "Native teammate action panel (read-only)");
+            bool nativeHud = GUILayout.Toggle(observerHud.Enabled, "Show teammate action panel (read-only)");
             if (nativeHud != observerHud.Enabled) observerHud.SetEnabled(nativeHud);
-            bool expanded = GUILayout.Toggle(DetailedTooltips.Enabled, "Always show detailed tooltips (as with Alt)");
+            bool expanded = GUILayout.Toggle(DetailedTooltips.Enabled, "Detailed tooltips without Alt");
             if (expanded != DetailedTooltips.Enabled) DetailedTooltips.SetEnabled(expanded);
-            SetRangeEnabled(GUILayout.Toggle(showHoverRange, "Show spell / attack range on hover [F7]"));
+            SetRangeEnabled(GUILayout.Toggle(showHoverRange, "Spell and attack range on hover [F7]"));
             GUILayout.Label(heading, titleStyle);
             if (party.Count > 0)
             {
@@ -492,7 +494,7 @@ namespace SolastaCoop
             else if (tab == 9) DrawCombatSpeed();
             else
             {
-                GUILayout.Label("Read-only preview. Not all usage conditions are evaluated.", textStyle);
+                GUILayout.Label("Teammate actions and abilities (read-only).", textStyle);
                 scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(Math.Max(80, window.height - 420)));
                 foreach (Row row in rows[tab])
                     if (GUILayout.Button(row.Title)) details = row.Details;
@@ -515,42 +517,35 @@ namespace SolastaCoop
                 object peer = Read.Get(client, "LoadBalancingPeer");
                 object settings = Read.Get(Read.Get(photon, "PhotonServerSettings"), "AppSettings");
                 string state = Read.Text(Read.Get(photon, "NetworkClientState"));
-                bool connected = Read.Get(photon, "IsConnected") is bool && (bool)Read.Get(photon, "IsConnected");
-                GUILayout.Label("Photon state: " + state +
-                    "\nRegion: " + Read.Text(Read.Get(photon, "CloudRegion")) +
-                    "\nCurrent client transport: " + Read.Text(Read.Get(peer, "TransportProtocol")) +
-                    "\nActual client state: " + Read.Text(Read.Get(client, "State")) +
-                    "; offline=" + Read.Text(Read.Get(photon, "OfflineMode")) +
-                    "\nTimeout: " + Read.Text(Read.Get(peer, "DisconnectTimeout")) + " ms" +
-                    "\nTransport for next connection: " + Read.Text(Read.Get(settings, "Protocol")), textStyle);
-                GUILayout.Label("The selection takes effect on the next Photon connection. If already connected, " +
-                    "leave multiplayer completely and reconnect without restarting the game. " +
-                    "Creating a room on an existing connection does not change transport.", textStyle);
+                bool connected = Read.Get(photon, "IsConnected") is bool &&
+                    (bool)Read.Get(photon, "IsConnected");
+
+                GUILayout.Label("Photon: " + state + "  |  Transport: " +
+                    Read.Text(Read.Get(peer, "TransportProtocol")) + "  |  Region: " +
+                    Read.Text(Read.Get(photon, "CloudRegion")), textStyle);
                 bool previous = GUI.enabled;
                 try
                 {
                     GUI.enabled = previous && settings != null;
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Use TCP on next connection")) ChangeProtocol(settings, state, connected, false);
-                    if (GUILayout.Button("Restore original settings")) ChangeProtocol(settings, state, connected, true);
-                    GUILayout.EndHorizontal();
+                    bool tcp = transport.TcpSelected(settings);
+                    bool nextTcp = GUILayout.Toggle(tcp, "Use TCP for next connection");
+                    if (nextTcp != tcp) ChangeProtocol(settings, state, connected, !nextTcp);
                 }
                 finally { GUI.enabled = previous; }
+                GUILayout.Label("Transport changes after reconnecting to multiplayer.", textStyle);
                 GUILayout.Label(networkMessage, textStyle);
-                bool retry = GUILayout.Toggle(ConnectionRetry.Enabled, "Up to 3 confirmed JOIN retries; room creation is never retried");
+
+                bool retry = GUILayout.Toggle(ConnectionRetry.Enabled, "Retry failed room joins (up to 3)");
                 if (retry != ConnectionRetry.Enabled) ConnectionRetry.SetEnabled(retry);
                 GUILayout.Label(ConnectionRetry.Status, textStyle);
                 if (ConnectionRetry.NeedsAcknowledgement &&
                     GUILayout.Button("Photon error dialog closed, retry joining"))
                     ConnectionRetry.ConfirmErrorDismissed();
                 if (GUILayout.Button("Cancel retries")) ConnectionRetry.Cancel("Cancelled by user.");
-                if (settings == null) GUILayout.Label("Buttons unavailable: Photon settings are not loaded yet.", textStyle);
-                GUILayout.Label("This is an experimental Photon transport setting. It does not replace Photon or " +
-                    "fix gameplay desynchronization. The setting lasts until the game restarts.", textStyle);
             }
             catch (Exception e)
             {
-                GUILayout.Label("Network settings unavailable: " + e.GetBaseException().Message, textStyle);
+                GUILayout.Label("Network unavailable: " + e.GetBaseException().Message, textStyle);
             }
         }
 
@@ -573,37 +568,35 @@ namespace SolastaCoop
 
         private void DrawTravel()
         {
-            bool enabled = GUILayout.Toggle(travelShare.Enabled, "Host travel screen and player cursors");
+            bool enabled = GUILayout.Toggle(travelShare.Enabled, "Share host travel screen and cursors");
             if (enabled != travelShare.Enabled) travelShare.SetEnabled(enabled);
             GUILayout.Label(travelShare.Status, textStyle);
-            GUILayout.Label("All players must use the updated mod. During travel and map preparation, the game window is shared at up to 1280x720 and 1 FPS. Clicks are not transmitted, and screenshots are not saved to disk.", textStyle);
+            GUILayout.Label("Travel preview: up to 1 FPS. No remote clicks.", textStyle);
             if (GUILayout.Button("Show / hide travel preview [F6]")) travelShare.TogglePreview();
-            GUILayout.Space(12);
-            GUILayout.Label("Fast-travel votes", titleStyle);
+
+            GUILayout.Space(8);
             bool acceptFastTravel = GUILayout.Toggle(autoFastTravelVote.Enabled,
-                "Automatically accept fast-travel destination votes");
+                "Auto-accept fast-travel votes");
             if (acceptFastTravel != autoFastTravelVote.Enabled)
                 autoFastTravelVote.SetEnabled(acceptFastTravel);
-            GUILayout.Label(autoFastTravelVote.Status + "\nOther votes are not affected.", textStyle);
-            GUILayout.Space(12);
-            GUILayout.Label("Loading screens", titleStyle);
+            GUILayout.Label(autoFastTravelVote.Status, textStyle);
+
+            GUILayout.Space(8);
             bool acceptLoading = GUILayout.Toggle(autoLoadingProceed.Enabled,
-                "Automatically continue after loading a save or location");
-            if (acceptLoading != autoLoadingProceed.Enabled) autoLoadingProceed.SetEnabled(acceptLoading);
-            GUILayout.Label(autoLoadingProceed.Status + "\nOnly the native post-loading prompt is confirmed. " +
-                "Dialogs, warnings, and multiplayer votes are not automatically accepted by this setting.", textStyle);
+                "Auto-continue after loading a save or location");
+            if (acceptLoading != autoLoadingProceed.Enabled)
+                autoLoadingProceed.SetEnabled(acceptLoading);
+            GUILayout.Label(autoLoadingProceed.Status, textStyle);
+            GUILayout.Label("Confirms only the ready loading screen, not dialogs or other votes.", textStyle);
         }
 
         private void DrawLoot()
         {
-            GUILayout.Label("Shared interactive loot uses the native Solasta window, without screen streaming. Experimental feature.", textStyle);
-            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Shared interactive chest and corpse loot");
+            bool enabled = GUILayout.Toggle(lootShare.Enabled, "Share interactive chest, corpse and ground loot");
             if (enabled != lootShare.Enabled) lootShare.SetEnabled(enabled);
             GUILayout.Label(lootShare.Status, textStyle);
-            GUILayout.Label("The other player gets a local native loot window. " +
-                "The other player can loot using their own hero. The shared chest UI ignores local distance checks; game-side checks may still apply. F11 is disabled.", textStyle);
+            GUILayout.Label("Players loot with their own heroes; game-side range rules may still apply.", textStyle);
             if (GUILayout.Button("Close shared loot window")) lootShare.ClosePreview();
-            GUILayout.Label(lootShare.Diagnostics, textStyle);
         }
 
         private void DrawDiagnostics()
@@ -619,71 +612,80 @@ namespace SolastaCoop
             }
             GUILayout.EndHorizontal();
             scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(Math.Max(100, window.height - 350)));
-            GUILayout.Label("Logs: " + Log.DirectoryPath + "\nUp to 1 MiB per log, 3 backups. " +
-                "Network monitoring continues while the panel is hidden.", textStyle);
-            if (Log.Writer.FailedWrites > 0) GUILayout.Label("Log write failures: " + Log.Writer.FailedWrites +
-                "\n" + Log.Writer.LastError, textStyle);
+            GUILayout.Label("Logs: " + Log.DirectoryPath, textStyle);
+            if (Log.Writer.FailedWrites > 0)
+                GUILayout.Label("Log write errors: " + Log.Writer.FailedWrites + "\n" + Log.Writer.LastError, textStyle);
             GUILayout.Label(diagnostics.ReportMessage, textStyle);
             GUILayout.Label(observerHud.Status + "\n" + lootShare.Diagnostics, textStyle);
             GUILayout.Label(DetailedTooltips.Status, textStyle);
-            GUILayout.Label("Network\n" + diagnostics.LatestNetwork + "\n\nRange\n" + diagnostics.LatestRange +
-                "\n\n" + diagnostics.Checks, textStyle);
+            GUILayout.Label("Network\n" + diagnostics.LatestNetwork + "\n\nRange\n" +
+                diagnostics.LatestRange + "\n\n" + diagnostics.Checks, textStyle);
             GUILayout.EndScrollView();
         }
 
         private void DrawTransfer()
         {
-            GUILayout.Label("Character-to-character item transfers", titleStyle);
             bool unlimited = GUILayout.Toggle(ItemTransferRange.Enabled,
-                "Allow transfer beyond the standard 6 cells");
+                "Allow item transfers beyond 6 cells");
             if (unlimited != ItemTransferRange.Enabled) ItemTransferRange.SetEnabled(unlimited);
             GUILayout.Label(ItemTransferRange.Status, textStyle);
-            GUILayout.Label("The patch only changes recipient selection distance checks " +
-                "in the inventory window. Server-side checks are unchanged. " +
-                "In multiplayer, save before transferring items, " +
-                "and avoid transfers during desynchronization.", textStyle);
-            GUILayout.Space(12);
-            GUILayout.Label("Character auto-follow", titleStyle);
-            bool next = GUILayout.Toggle(autoFollow.Enabled,
-                "My characters automatically follow a teammate");
+            GUILayout.Label("Extends recipient selection in inventory; server rules may still apply.", textStyle);
+
+            GUILayout.Space(8);
+            bool next = GUILayout.Toggle(autoFollow.Enabled, "Auto-follow teammate during exploration");
             if (next != autoFollow.Enabled) autoFollow.SetEnabled(next);
-            GUILayout.Label(autoFollow.Status + "\n" + (hostMoveShare == null ? "" : hostMoveShare.Status) +
-                "\nHost movement destinations are shared over Photon. Exploration only; enable auto-follow on the client.", textStyle);
-            if (GUILayout.Button("Automatically select moving leader"))
+            GUILayout.Label(autoFollow.Status, textStyle);
+            if (GUILayout.Button("Auto-select moving teammate"))
                 autoFollow.SelectAutomaticLeader();
-            GUILayout.Label("To follow a specific teammate hero, select them at the top of F8. "+
-                "When multiple teammate heroes exist, auto mode favors the one currently moving.", textStyle);
+            GUILayout.Label("Select a specific leader in the character list above.", textStyle);
+
+            if (hostMoveShare != null)
+            {
+                GUILayout.Space(8);
+                bool waypoints = GUILayout.Toggle(hostMoveShare.Enabled, "Share host movement destinations");
+                if (waypoints != hostMoveShare.Enabled) hostMoveShare.SetEnabled(waypoints);
+                GUILayout.Label("Sends host waypoints to followers via Photon.", textStyle);
+            }
         }
 
         private void DrawCombatSpeed()
         {
-            GUILayout.Label("Combat animation speed: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
-            float factor = GUILayout.HorizontalSlider(CombatSpeed.Factor, 1f, 3f);
-            if (Math.Abs(factor - CombatSpeed.Factor) > 0.125f)
-                CombatSpeed.SetFactor(factor);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("×1 (normal)")) CombatSpeed.SetFactor(1f);
-            if (GUILayout.Button("×2 (default)")) CombatSpeed.SetFactor(2f);
-            if (GUILayout.Button("×3")) CombatSpeed.SetFactor(3f);
-            GUILayout.EndHorizontal();
-            GUILayout.Space(10);
-            GUILayout.Label(CombatSpeed.Status, textStyle);
-            GUILayout.Label("Speeds up Animator, legacy Animation, and particle effects during combat only. " +
-                "Restores normal speed outside combat. Range: ×1–×3, increments of ×0.25; starts at ×2. " +
-                "Does not speed up game time, network timers, turn order, or movement between cells. " +
-                "This is an experimental visual mode for multiplayer: faster animation events " +
-                "may affect gameplay. Using the same settings on both clients is recommended.", textStyle);
+            bool speedEnabled = CombatSpeed.Factor > 1f;
+            bool nextEnabled = GUILayout.Toggle(speedEnabled, "Speed up combat animations");
+            if (nextEnabled != speedEnabled)
+                CombatSpeed.SetFactor(nextEnabled ? Math.Max(1.25f, preferredCombatSpeed) : 1f);
+            if (CombatSpeed.Factor > 1f)
+            {
+                GUILayout.Label("Animation speed: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
+                float factor = GUILayout.HorizontalSlider(CombatSpeed.Factor, 1.25f, 3f);
+                if (Math.Abs(factor - CombatSpeed.Factor) > 0.125f)
+                    CombatSpeed.SetFactor(factor);
+                preferredCombatSpeed = CombatSpeed.Factor;
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("×1.25")) CombatSpeed.SetFactor(1.25f);
+                if (GUILayout.Button("×2")) CombatSpeed.SetFactor(2f);
+                if (GUILayout.Button("×3")) CombatSpeed.SetFactor(3f);
+                GUILayout.EndHorizontal();
+                preferredCombatSpeed = CombatSpeed.Factor;
+            }
+            GUILayout.Label("Speeds up animations and VFX during combat; turn timers stay unchanged.", textStyle);
         }
 
         private void DrawCamera()
         {
-            GUILayout.Label("Maximum camera zoom-out: ×" + CameraZoom.Factor.ToString("0.0"), titleStyle);
-            float factor = (float)Math.Round(GUILayout.HorizontalSlider(CameraZoom.Factor, 1f, 3f), 1);
-            if (Math.Abs(factor - CameraZoom.Factor) > 0.05f) CameraZoom.SetFactor(factor);
-            if (GUILayout.Button("Restore default zoom")) CameraZoom.SetFactor(1f);
-            GUILayout.Label(CameraZoom.Status + "\n\nThe mouse wheel still controls zoom. " +
-                "This extends the far and middle camera orbits during combat and exploration. " +
-                "Cinematic modes and the world map are excluded. This setting resets when the game restarts.", textStyle);
+            bool zoomEnabled = CameraZoom.Factor > 1f;
+            bool nextEnabled = GUILayout.Toggle(zoomEnabled, "Extended camera zoom");
+            if (nextEnabled != zoomEnabled)
+                CameraZoom.SetFactor(nextEnabled ? Math.Max(1.1f, preferredCameraZoom) : 1f);
+            if (CameraZoom.Factor > 1f)
+            {
+                GUILayout.Label("Maximum zoom-out: ×" + CameraZoom.Factor.ToString("0.0"), titleStyle);
+                float factor = (float)Math.Round(
+                    GUILayout.HorizontalSlider(CameraZoom.Factor, 1.1f, 3f), 1);
+                if (Math.Abs(factor - CameraZoom.Factor) > 0.05f) CameraZoom.SetFactor(factor);
+                preferredCameraZoom = CameraZoom.Factor;
+            }
+            GUILayout.Label("Extends zoom in exploration and combat; not cinematics or world map.", textStyle);
         }
 
         private void DrawHoverRange()

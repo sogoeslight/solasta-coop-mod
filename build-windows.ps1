@@ -47,5 +47,5 @@ if ($LASTEXITCODE -ne 0) { throw "Build failed with exit code $LASTEXITCODE" }
 
 $dll = Join-Path $project 'build\winhttp.dll'
 if (-not (Test-Path $dll)) { throw 'Build finished without generating build\winhttp.dll.' }
-Write-Host 'Built Solasta Coop View v0.1.18:' -ForegroundColor Green
+Write-Host 'Built Solasta Coop Mod:' -ForegroundColor Green
 Get-Item $dll | Select-Object FullName, Length, LastWriteTime

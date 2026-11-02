@@ -1,12 +1,12 @@
 # Troubleshooting
 
-Solasta Coop View is an experimental mod. Features have not been validated in a full two-player test on this source snapshot. Before troubleshooting, back up the host's save and confirm both players use the same build.
+Solasta Coop Mod is an experimental mod. Features have not been validated in a full two-player test on this source snapshot. Before troubleshooting, back up the host's save and confirm both players use the same build.
 
 ## Mod does not start
 
 - Verify `winhttp.dll` was built successfully and placed alongside `Solasta.exe`, not in `System32` or `Solasta_Data/Managed`.
 - Make sure both the managed C# payload and native proxy were produced by the same `build-windows.ps1` run.
-- Examine logs under `Downloads/SolastaCoopView`, and report the first startup exception.
+- Examine logs under `Downloads/SolastaCoopMod`, and report the first startup exception.
 
 ## Connection or room join fails
 

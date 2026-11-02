@@ -19,9 +19,9 @@ public static class VerifyDiagnostics
         try
         {
             string redirected = Path.Combine(root, "redirected-downloads");
-            Check(LogLocation.ChooseDirectory(() => redirected, root) == Path.Combine(redirected, "SolastaCoopView"),
+            Check(LogLocation.ChooseDirectory(() => redirected, root) == Path.Combine(redirected, "SolastaCoopMod"),
                 "Redirected Windows Downloads location is respected");
-            Check(LogLocation.ChooseDirectory(() => { throw new Exception(); }, root) == Path.Combine(root, "Downloads", "SolastaCoopView"),
+            Check(LogLocation.ChooseDirectory(() => { throw new Exception(); }, root) == Path.Combine(root, "Downloads", "SolastaCoopMod"),
                 "Known-folder failure falls back to profile Downloads");
             var writer = new DiagnosticWriter(Path.Combine(root, "basic"));
             writer.Write("network", "ERROR", "token=private123; AppIdRealtime=private456; password=\"two words\"\nforged-line\rBearer private789");

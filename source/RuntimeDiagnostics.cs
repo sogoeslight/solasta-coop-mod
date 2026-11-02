@@ -323,7 +323,7 @@ namespace SolastaCoop
                     DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture) + "-" +
                     Guid.NewGuid().ToString("N").Substring(0, 6) + ".txt");
                 var text = new StringBuilder();
-                text.AppendLine("Solasta Coop View " + BuildInfo.Version + " diagnostic report");
+                text.AppendLine("Solasta Coop Mod " + BuildInfo.Version + " diagnostic report");
                 text.AppendLine("UTC: " + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
                 text.AppendLine("Session: " + Log.Writer.Session);
                 text.AppendLine("Verbose: " + Log.Verbose);

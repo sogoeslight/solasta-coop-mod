@@ -1,4 +1,4 @@
-# Local changes for Solasta Coop View
+# Local changes for Solasta Coop Mod
 
 Based on the commit in UPSTREAM.txt. Modified on 2026-10-21.
 
@@ -13,14 +13,14 @@ Based on the commit in UPSTREAM.txt. Modified on 2026-10-21.
   than the upstream zero-argument C proxy wrappers. It also generates payload.h.
 
 The complete corresponding loader source is included. Rebuild with build.py and
-the prerequisites described in README.ru.md. No proprietary game binaries are
+the prerequisites described in README.md. No proprietary game binaries are
 required for the native loader itself; the managed module is compiled against
 Unity assemblies supplied with the user's game.
 
 ## Version 0.1.5 logging changes
 
 - src/windows/logger.h: replaced direct writes with a synchronized logger using local format buffers and UTF-8 byte counts.
-- src/windows/coop_logging.c: buffers early messages and starts a worker without waiting in DllMain. The worker resolves the Windows Downloads Known Folder outside the loader lock, writes versioned logs under SolastaCoopView, limits each file to 1 MiB, and retains twenty logs of this version.
+- src/windows/coop_logging.c: buffers early messages and starts a worker without waiting in DllMain. The worker resolves the Windows Downloads Known Folder outside the loader lock, writes versioned logs under SolastaCoopMod, limits each file to 1 MiB, and retains twenty logs of this version.
 - build.py: links the Windows COM library and the static GCC stack-probe helper required by local log buffers. No extra compiler runtime DLL is required.
 
 ## Version 0.1.6

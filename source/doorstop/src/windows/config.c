@@ -181,6 +181,6 @@ static inline void init_env_vars() {
 void load_config() {
     init_config_defaults();
     config.enabled = TRUE;
-    config.target_assembly = get_full_path(TEXT("SolastaCoopView.embedded.dll"));
+    config.target_assembly = get_full_path(TEXT("SolastaCoopMod.embedded.dll"));
     init_env_vars();
 }

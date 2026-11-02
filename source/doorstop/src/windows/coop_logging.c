@@ -13,7 +13,7 @@ static void coop_prune_logs(const WCHAR *directory, const WCHAR *current) {
     if (!storage) return;
     WCHAR *pattern = storage, *oldest = storage + 32768, *candidate = storage + 65536;
     lstrcpyW(pattern, directory);
-    lstrcatW(pattern, L"\\doorstop-0.1.11-*.log");
+    lstrcatW(pattern, L"\\doorstop-0.1.20-*.log");
     for (;;) {
         WIN32_FIND_DATAW item;
         HANDLE scan = FindFirstFileW(pattern, &item);
@@ -65,11 +65,11 @@ static DWORD WINAPI coop_log_worker(LPVOID ignored) {
     HANDLE opened = INVALID_HANDLE_VALUE;
     if (directory[0]) {
         SYSTEMTIME now;
-        lstrcatW(directory, L"\\SolastaCoopView");
+        lstrcatW(directory, L"\\SolastaCoopMod");
         CreateDirectoryW(directory, NULL);
         GetSystemTime(&now);
         WCHAR suffix[128];
-        wsprintfW(suffix, L"\\doorstop-0.1.11-%04u%02u%02u-%02u%02u%02u-%lu-%lu.log",
+        wsprintfW(suffix, L"\\doorstop-0.1.20-%04u%02u%02u-%02u%02u%02u-%lu-%lu.log",
                   now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond,
                   GetCurrentProcessId(), GetTickCount());
         lstrcpyW(file, directory); lstrcatW(file, suffix);

@@ -66,7 +66,7 @@ def main():
         if name == "VerifyApi":
             command.append(str(managed))
         elif name not in ("VerifyTransport", "VerifyDiagnostics"):
-            command.append(str(output / "SolastaCoopView.dll"))
+            command.append(str(output / "SolastaCoopMod.dll"))
         result = subprocess.run(command, env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
         (output / (name + "-check.txt")).write_text(result.stdout, encoding="utf-8")
         print(name + ": " + ("PASS" if result.returncode == 0 else "FAIL"), flush=True)
@@ -75,7 +75,7 @@ def main():
             print(result.stdout)
             failed.append(name)
     (source.parent / "validation.txt").write_text(
-        "Solasta Coop View 0.1.13\nAutomated local checks; no live game connection or Unity rendering tested.\n\n" +
+        "Solasta Coop Mod\nAutomated local checks; no live game connection or Unity rendering tested.\n\n" +
         "\n".join(reports), encoding="utf-8")
     raise SystemExit(bool(failed))
 

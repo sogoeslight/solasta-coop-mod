@@ -9,6 +9,13 @@ namespace SolastaCoop
         private object originalProtocol;
         private bool originalFallback;
 
+        internal bool TcpSelected(object settings)
+        {
+            if (settings == null) return false;
+            object protocol = Read.Get(settings, "Protocol");
+            return protocol != null && String.Equals(protocol.ToString(), "Tcp", StringComparison.OrdinalIgnoreCase);
+        }
+
         internal string Change(object settings, string state, bool connected, bool restore)
         {
             if (settings == null)

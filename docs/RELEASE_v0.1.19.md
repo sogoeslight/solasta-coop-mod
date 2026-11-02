@@ -1,8 +1,8 @@
-# Solasta Coop View v0.1.19
+# Solasta Coop Mod v0.1.19
 
 **Experimental first binary release**, Windows x64.
 
-Solasta Coop View is an unofficial co-op quality-of-life mod for Solasta: Crown of the Magister. This release contains a single installable file: **winhttp.dll**.
+Solasta Coop Mod is an unofficial co-op quality-of-life mod for Solasta: Crown of the Magister. This release contains a single installable file: **winhttp.dll**.
 
 ## New in 0.1.19
 
