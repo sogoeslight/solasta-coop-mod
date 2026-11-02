@@ -22,11 +22,13 @@ Proprietary Solasta game assemblies must **never** be committed to the public mo
 
 The `SOLASTA_REFS_TOKEN` secret is used **only** for the reference download step; compilation and publishing use the normal `GITHUB_TOKEN`.
 
-### Temporary transition behavior
+### Public repository readiness
 
-Until `SOLASTA_REFS_TOKEN` is configured, CI can temporarily use the old `ci-build-refs` draft in the main repo **only while that repo remains private**. If the main repo becomes public without the secret, the workflow deliberately fails instead of downloading from the old repository.
+The obsolete `ci-build-refs` draft and its archive have been removed from the main repository. The current workflow requires `SOLASTA_REFS_TOKEN` and exclusively downloads compilation references from the separate private `sogoeslight/solasta-build-refs` repository.
 
-**Before changing the main repo to Public:** verify a successful build using the new private source, and manually delete the old `ci-build-refs` draft and its archive from the main repo. Do not publicize the repository while the old archive remains accessible there.
+A successful Windows build with the private-only workflow was verified in [run 41373263713](https://github.com/sogoeslight/solasta-coop-mod/actions/runs/41373263713). Keep the private references repository private.
+
+The main repository can now be made public by its owner in **GitHub → Settings → General → Danger Zone → Change repository visibility → Public**. This administrative action is not supported by the connected GitHub integration.
 
 ### Updates after a Solasta patch
 
