@@ -1,98 +1,47 @@
-# Cloud builds and GitHub Releases
+# Windows CI and GitHub releases
 
-The workflow at `.github/workflows/windows-release.yml` can compile `winhttp.dll` on a GitHub-hosted Windows x64 runner, save a downloadable Actions artifact, and publish a prerelease for a version tag.
+The workflow `.github/workflows/windows-release.yml` builds `winhttp.dll` on a Windows runner and publishes only that DLL as an Actions artifact or a versioned GitHub Release.
 
-**Prerequisite:** Solasta's managed reference assemblies are not included in this repository or preinstalled on a GitHub runner. The owner must provide their own legally usable private compilation references. They never appear in output artifacts. Keep the repository private and do not distribute third-party game assemblies.
+## Private compilation references
 
-## One-time setup: prepare reference archive
+Proprietary Solasta game assemblies must **never** be committed to the public mod repository or included in a public release. Use the separate private repository `sogoeslight/solasta-build-refs`. The archive `SolastaManagedRefs.zip` should contain the minimal managed DLL references from a legally installed copy of Solasta.
 
-Run this in PowerShell on the Windows PC where Solasta is installed. Adjust the game path if necessary.
+**Check the applicable game license before storing game DLLs in any third-party cloud service.** An alternative is compiling locally using the game's installed `Solasta_Data/Managed` folder.
 
-```powershell
-$ErrorActionPreference = "Stop"
-$managed = "B:\Games\Steam\steamapps\common\Slasta_COTM\Solasta_Data\Managed"
-$work = Join-Path $env:TEMP "Solasta-CI-References"
-$zip = Join-Path $env:USERPROFILE "Downloads\SolastaManagedRefs.zip"
+### One-time setup
 
-$names = @(
-    "Assembly-CSharp",
-    "mscorlib",
-    "System",
-    "System.Core",
-    "UnityEngine",
-    "UnityEngine.CoreModule",
-    "UnityEngine.IMGUIModule",
-    "UnityEngine.InputLegacyModule",
-    "UnityEngine.TextRenderingModule",
-    "UnityEngine.ScreenCaptureModule",
-    "UnityEngine.ImageConversionModule",
-    "UnityEngine.AnimationModule",
-    "UnityEngine.ParticleSystemModule",
-    "UnityEngine.UI",
-    "UnityEngine.UIModule"
-)
+1. Keep `sogoeslight/solasta-build-refs` **Private**.
+2. Open its Releases page, edit the pre-created `ci-build-refs` draft, attach `SolastaManagedRefs.zip`, then **publish the release inside the private repository**. Publishing a release in a private repository does **not** make its files public. Publishing is useful because a read-only token can download the asset.
+3. Open https://github.com/settings/personal-access-tokens/new and create a **fine-grained personal access token**:
+   - Resource owner: `sogoeslight`.
+   - Repository access: **Only select repositories**, selecting `solasta-build-refs` only.
+   - Repository permissions: **Contents: Read-only**, leave other permissions disabled.
+   - Choose a suitable expiration and renew the token before it expires.
+4. Open https://github.com/sogoeslight/solasta-coop-mod/settings/secrets/actions and add a repository **secret** named `SOLASTA_REFS_TOKEN` with that token. Never put it in a Git commit, issue, chat, artifact or workflow log.
+5. Trigger **Windows build and release** in the main repository (version field blank) and confirm success. On a successful run, the runner downloads private references from `sogoeslight/solasta-build-refs`.
 
-if (-not (Test-Path $managed)) { throw "Missing game directory: $managed" }
-if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $work | Out-Null
+The `SOLASTA_REFS_TOKEN` secret is used **only** for the reference download step; compilation and publishing use the normal `GITHUB_TOKEN`.
 
-foreach ($name in $names) {
-    $file = Join-Path $managed "$name.dll"
-    if (-not (Test-Path $file)) { throw "Missing $file" }
-    Copy-Item -LiteralPath $file -Destination $work
-}
+### Temporary transition behavior
 
-Compress-Archive -Path (Join-Path $work "*.dll") -DestinationPath $zip -Force
-Write-Host "Created: $zip"
-```
+Until `SOLASTA_REFS_TOKEN` is configured, CI can temporarily use the old `ci-build-refs` draft in the main repo **only while that repo remains private**. If the main repo becomes public without the secret, the workflow deliberately fails instead of downloading from the old repository.
 
-## Upload private references once
+**Before changing the main repo to Public:** verify a successful build using the new private source, and manually delete the old `ci-build-refs` draft and its archive from the main repo. Do not publicize the repository while the old archive remains accessible there.
 
-Keep the repository **private**, check the game's license, and never upload this archive to a public release. If you are allowed to store the references on GitHub, create a **draft** release, using GitHub CLI after `gh auth login`:
+### Updates after a Solasta patch
+
+If referenced assemblies change, recreate `SolastaManagedRefs.zip` from your game installation, replace the private release asset in `solasta-build-refs`, and rebuild `winhttp.dll`. Game API changes may also require code updates.
+
+The command below requires GitHub CLI authentication with write access to the **private reference repository**:
 
 ```powershell
-$repo = "sogoeslight/solasta-coop-mod"
-$zip = Join-Path $env:USERPROFILE "Downloads\SolastaManagedRefs.zip"
-
-gh release create ci-build-refs $zip --repo $repo --draft --title "Private CI build references" --notes "Build-only references. Do not publish."
+gh release upload ci-build-refs "$env:USERPROFILE\Downloads\SolastaManagedRefs.zip" --repo sogoeslight/solasta-build-refs --clobber
 ```
 
-For a future game update, rebuild the archive and replace that draft's asset:
+## Build and release
 
-```powershell
-gh release upload ci-build-refs $zip --repo sogoeslight/solasta-coop-mod --clobber
-```
+Open https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml and select **Run workflow**. Leave `version` empty for a temporary Actions artifact, or enter a new tag such as `v0.1.21` to create a release. Commits to `main` automatically build and validate the DLL.
 
-The workflow downloads the private asset with its ephemeral `GITHUB_TOKEN`. You do not need a personal access token. The draft release must stay unpublished.
+A successful build saves only `winhttp.dll` in the Actions artifact. GitHub's download UI wraps the artifact in a ZIP; the GitHub Release directly exposes `winhttp.dll`.
 
-**Alternative with no game DLL upload:** set up a Windows self-hosted Actions runner on your game PC and adapt the workflow's reference path to its local `Solasta_Data\Managed`. This is safer if you are unsure about the game's license.
-
-## Manual cloud build
-
-Open [Actions → Windows build and release](https://github.com/sogoeslight/solasta-coop-mod/actions/workflows/windows-release.yml), click **Run workflow** on `main`, and leave **version** blank.
-
-On success, download the artifact named `solasta-coop-mod-windows-x64`. It contains **only `winhttp.dll`**. GitHub Actions packages artifacts as a downloadable archive, but the build does not generate a second mod ZIP or checksums. Artifacts have 30-day retention.
-
-## Publish a version
-
-**From the UI:** Run the workflow, entering a fresh version such as `v0.1.18`. Only after a successful compilation does the workflow create and publish a prerelease.
-
-**With Git tags:** Push a tag starting with `v`:
-
-```powershell
-git checkout main
-git pull
-git tag v0.1.19
-git push origin v0.1.19
-```
-
-A successful tag-triggered build creates a GitHub prerelease and uploads **only `winhttp.dll`**. Existing release assets are never overwritten.
-
-## Limitations and troubleshooting
-
-- Static source checks cannot verify compilation or actual co-op behavior.
-- A failing C# or GCC build blocks release publication; inspect the Action run logs.
-- `ci-build-refs` must be a private draft release containing exactly `SolastaManagedRefs.zip`.
-- After Solasta updates, compare the installed managed DLLs against the archived compilation references. If `Assembly-CSharp.dll` or any referenced Unity/system DLL has changed, rebuild `SolastaManagedRefs.zip`, replace the private draft asset with `gh release upload ci-build-refs $zip --repo sogoeslight/solasta-coop-mod --clobber`, and rebuild the mod. Resource-only updates generally do not require refreshing compilation references. Changes to game APIs may also require updating the mod's C# code, and compilation alone does not guarantee compatibility.
-- Do not commit or distribute Solasta-managed game DLLs.
-- This is an experimental project. Keep backups of your game saves and test both clients on the same build.
+Static validation and compilation do not replace real in-game co-op testing.
