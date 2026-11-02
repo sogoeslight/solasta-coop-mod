@@ -1,0 +1,83 @@
+name: Upload release to Nexus Mods
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing GitHub Release version (without v)"
+        required: true
+        default: "0.1.20"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-upload-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Upload DLL archive to Nexus Mods
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check Nexus credentials and version
+        shell: bash
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+          NEXUS_FILE_ID: ${{ vars.NEXUSMODS_FILE_ID }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NEXUS_API_KEY" ]]; then
+            echo "::error::Set NEXUSMODS_API_KEY in repository Actions secrets."
+            exit 1
+          fi
+          if ! [[ "$NEXUS_FILE_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::Set numeric NEXUSMODS_FILE_ID in repository Actions variables."
+            exit 1
+          fi
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::Expected a version such as 0.1.20."
+            exit 1
+          fi
+
+      - name: Download winhttp.dll from GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          gh release download "v$RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "winhttp.dll" \
+            --dir "nexus-input"
+          test -s "nexus-input/winhttp.dll"
+          cp "nexus-input/winhttp.dll" "winhttp.dll"
+          file "winhttp.dll"
+
+      - name: Package DLL for Nexus Mods
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          zip -q -9 "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip" winhttp.dll
+          unzip -l "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip"
+
+      - name: Upload version to Nexus Mods
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.10
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+          filename: Solasta-Coop-Mod-v${{ inputs.version }}-Nexus.zip
+          version: ${{ inputs.version }}
+          display_name: Solasta Coop Mod v${{ inputs.version }}
+          category: main
+          archive_existing_version: false
+          allow_mod_manager_download: false
+          primary_mod_manager_download: false
+          update_mod_version: true
