@@ -1,0 +1,64 @@
+name: Nexus Mods one-time credentials preflight
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/nexus-one-time-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Check Nexus access without uploading
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify key, file ID, and existing versions
+        shell: bash
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+          NEXUS_FILE_ID: ${{ vars.NEXUSMODS_FILE_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NEXUS_API_KEY" ]]; then
+            echo "::error::Secret NEXUSMODS_API_KEY is missing."
+            exit 1
+          fi
+          if [[ -z "$NEXUS_FILE_ID" ]]; then
+            echo "::error::Repository variable NEXUSMODS_FILE_ID is missing."
+            exit 1
+          fi
+          if [[ ! "$NEXUS_FILE_ID" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::NEXUSMODS_FILE_ID contains unexpected characters."
+            exit 1
+          fi
+
+          data_file="$RUNNER_TEMP/nexus-existing-file-versions.json"
+          if ! curl -fsS --retry 2 \
+            -H "apikey: $NEXUS_API_KEY" \
+            -H "Accept: application/json" \
+            "https://api.nexusmods.com/v3/mod-files/$NEXUS_FILE_ID/versions" \
+            -o "$data_file"; then
+            echo "::error::Unable to list Nexus versions; check the API key and file ID."
+            exit 1
+          fi
+
+          if ! jq -e '.data.versions | type == "array"' "$data_file" >/dev/null; then
+            echo "::error::Unexpected Nexus API response."
+            exit 1
+          fi
+
+          echo "Nexus credentials are valid, and file versions are readable."
+          versions_count=$(jq '.data.versions | length' "$data_file")
+          echo "Existing file version count: $versions_count"
+          if jq -e '.data.versions | any(.version == "0.1.21")' "$data_file" >/dev/null; then
+            echo "Nexus has version 0.1.21 already. Do not upload duplicate."
+            echo "Nexus 0.1.21: already exists" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nexus does not have version 0.1.21 yet."
+            echo "Nexus 0.1.21: not found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Nexus file ID and API key verified without any changes or uploads." >> "$GITHUB_STEP_SUMMARY"
