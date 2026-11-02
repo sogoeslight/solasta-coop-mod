@@ -35,4 +35,10 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --prerelease=false \
             --latest
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease,isLatest
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [[ "$latest" != "$RELEASE_TAG" ]]; then
+            echo "Latest release mismatch: expected $RELEASE_TAG, got $latest"
+            exit 1
+          fi
+          echo "Confirmed: $RELEASE_TAG is the latest release."
