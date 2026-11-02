@@ -6,8 +6,13 @@ on:
       version:
         description: "Existing GitHub Release version (without v)"
         required: true
-        default: "0.1.20"
+        default: "0.1.21"
         type: string
+      dry_run:
+        description: "Validate GitHub Release, Nexus versions and ZIP without uploading"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -18,7 +23,7 @@ concurrency:
 
 jobs:
   upload:
-    name: Upload DLL archive to Nexus Mods
+    name: Validate and optionally upload DLL archive to Nexus Mods
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -35,12 +40,63 @@ jobs:
             echo "::error::Set NEXUSMODS_API_KEY in repository Actions secrets."
             exit 1
           fi
-          if ! [[ "$NEXUS_FILE_ID" =~ ^[0-9]+$ ]]; then
-            echo "::error::Set numeric NEXUSMODS_FILE_ID in repository Actions variables."
+          if [[ -z "$NEXUS_FILE_ID" || ! "$NEXUS_FILE_ID" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::Set NEXUSMODS_FILE_ID in repository Actions variables to the existing Nexus Main File ID."
             exit 1
           fi
-          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
-            echo "::error::Expected a version such as 0.1.20."
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::Expected a version such as 0.1.21."
+            exit 1
+          fi
+
+      - name: Stop if this version already exists on Nexus Mods
+        shell: bash
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+          NEXUS_FILE_ID: ${{ vars.NEXUSMODS_FILE_ID }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          versions_json="$RUNNER_TEMP/nexus-mod-file-versions.json"
+          curl --fail --silent --show-error \
+            --retry 2 \
+            -H "apikey: $NEXUS_API_KEY" \
+            -H "Accept: application/json" \
+            "https://api.nexusmods.com/v3/mod-files/$NEXUS_FILE_ID/versions" \
+            -o "$versions_json"
+
+          if ! jq -e '.data.versions | type == "array"' "$versions_json" >/dev/null; then
+            echo "::error::Nexus returned an unexpected version-list response. Refusing upload."
+            exit 1
+          fi
+
+          if jq -e --arg version "$RELEASE_VERSION" \
+              '.data.versions | any(.version == $version)' "$versions_json" >/dev/null; then
+            echo "::error::Nexus file already has version $RELEASE_VERSION. Refusing duplicate upload."
+            exit 1
+          fi
+
+          echo "Nexus file exists and version $RELEASE_VERSION is not present."
+
+      - name: Verify GitHub Release contains winhttp.dll
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "v$RELEASE_VERSION" \
+              --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub Release v$RELEASE_VERSION is missing. Create and verify the release before uploading to Nexus."
+            exit 1
+          fi
+
+          asset_found=$(gh release view "v$RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '[.assets[].name] | index("winhttp.dll") != null')
+          if [[ "$asset_found" != "true" ]]; then
+            echo "::error::GitHub Release v$RELEASE_VERSION does not contain winhttp.dll."
             exit 1
           fi
 
@@ -51,13 +107,14 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          mkdir -p nexus-input
           gh release download "v$RELEASE_VERSION" \
             --repo "$GITHUB_REPOSITORY" \
             --pattern "winhttp.dll" \
-            --dir "nexus-input"
+            --dir nexus-input
           test -s "nexus-input/winhttp.dll"
-          cp "nexus-input/winhttp.dll" "winhttp.dll"
-          file "winhttp.dll"
+          cp "nexus-input/winhttp.dll" winhttp.dll
+          file winhttp.dll
 
       - name: Package DLL for Nexus Mods
         shell: bash
@@ -68,7 +125,17 @@ jobs:
           zip -q -9 "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip" winhttp.dll
           unzip -l "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip"
 
-      - name: Upload version to Nexus Mods
+      - name: Report validation-only run
+        if: ${{ inputs.dry_run }}
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          echo "Dry run succeeded for version $RELEASE_VERSION."
+          echo "Nothing was uploaded to Nexus Mods."
+
+      - name: Upload new version to Nexus Mods
+        if: ${{ !inputs.dry_run }}
         uses: Nexus-Mods/upload-action@v1.0.0-beta.10
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
