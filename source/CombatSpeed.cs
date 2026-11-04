@@ -16,8 +16,10 @@ namespace SolastaCoop
         private static bool active;
         private static string lastError = "";
 
-        internal static float Factor { get; private set; } = 2f;
-        internal static float ExplorationFactor { get; private set; } = 2f;
+        internal const float DefaultCombatFactor = 1.5f;
+        internal const float DefaultExplorationFactor = 1.75f;
+        internal static float Factor { get; private set; } = DefaultCombatFactor;
+        internal static float ExplorationFactor { get; private set; } = DefaultExplorationFactor;
         internal static string Status
         {
             get { return "Combat ×" + Factor.ToString("0.00") + "; exploration ×" + ExplorationFactor.ToString("0.00") +

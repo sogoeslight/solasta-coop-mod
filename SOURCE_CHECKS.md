@@ -23,3 +23,8 @@ The host's TCP trace demonstrates successful connection/authentication to the Ga
 `verify.py` includes native API checks and real Harmony dialogue fixtures, plus pure vote-policy cases. Pass `--cecil /path/to/Mono.Cecil.dll` (a Mono-compatible build) to include movement fixtures. The harness creates an isolated copy of Unity CoreModule with deterministic time getters under the ignored build directory; game references and distributed binaries are never modified. Movement checks measure completion frames at x1/x2/x3, destination preservation, baked waits, walking blend compensation, independent exploration speed and cinematic exclusion.
 
 No fixture replaces a live host/client gameplay test.
+
+
+## Version 0.1.22 startup regression
+
+With `--cecil`, the harness also runs `VerifyStartup`: no new gameplay detours in the Bootstrap/menu phase, all four gameplay installers after location load, a genuinely empty virtual acknowledgement left unpatched and callable, save-before-acknowledgement ordering, native save restrictions, and the x1.5/x1.75 defaults. The Unity fixture changes time/preference access only in an ignored test copy. The original 0.1.21 acknowledgement installer reproduces a native Mono crash in the isolated fixture; the call-site implementation passes.

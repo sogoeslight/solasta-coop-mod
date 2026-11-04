@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
+using HarmonyLib;
 using UnityEngine;
 using Object = System.Object;
 
@@ -24,11 +27,13 @@ namespace SolastaCoop
                 Type gadget = Read.Type("GameGadget");
                 MethodInfo interact = gadget.GetMethods(BindingFlags.Instance | BindingFlags.Public).Single(m => m.Name == "Interact");
                 HarmonySupport.Patch(interact, typeof(DialogueAutosave).GetMethod("BeforeGadgetFlow", BindingFlags.NonPublic | BindingFlags.Static));
-                Type listener = Read.Type("GameGadgetListener");
-                foreach (Type type in listener.Assembly.GetTypes().Where(t => t == listener || t.IsSubclassOf(listener)))
-                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
-                        .Where(m => m.Name == "AcknowledgeTrigger" && !m.IsAbstract))
-                        HarmonySupport.Patch(method, typeof(DialogueAutosave).GetMethod("BeforeTrigger", BindingFlags.NonPublic | BindingFlags.Static));
+                // The base acknowledgement is an empty method. Detouring tiny
+                // virtual implementations can corrupt adjacent Mono trampolines.
+                // Intercept its call inside the substantial Update method instead.
+                MethodInfo update = gadget.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                    .Single(m => m.Name == "Update" && m.DeclaringType == gadget);
+                HarmonySupport.Patch(update, transpiler: typeof(DialogueAutosave).GetMethod(
+                    "BeforeAcknowledgement", BindingFlags.NonPublic | BindingFlags.Static));
                 installed = true;
                 Status = "Autosave before dialogue flows when native saving is allowed (host only).";
             }
@@ -61,9 +66,35 @@ namespace SolastaCoop
                     return type == "StartDialogSequence" || type == "StartGameplayDialogSequence"; });
         }
 
-        private static void BeforeTrigger(object __instance)
+        // Public because the helper is emitted into the game's Update body.
+        public static void BeforeTrigger(object listener)
         {
-            if (Enabled && HasDialogue(__instance)) TrySave("dialogue trigger acknowledgement");
+            if (Enabled && HasDialogue(listener)) TrySave("dialogue trigger acknowledgement");
+        }
+
+        private static IEnumerable<CodeInstruction> BeforeAcknowledgement(IEnumerable<CodeInstruction> instructions)
+        {
+            var body = instructions.ToList();
+            Type listener = Read.Type("GameGadgetListener");
+            int matches = body.Count(i => i.operand is MethodInfo &&
+                ((MethodInfo)i.operand).Name == "AcknowledgeTrigger" && ((MethodInfo)i.operand).DeclaringType == listener);
+            if (matches != 1) throw new InvalidOperationException("Expected one native trigger acknowledgement call, found " + matches);
+            MethodInfo before = typeof(DialogueAutosave).GetMethod("BeforeTrigger", BindingFlags.Public | BindingFlags.Static);
+            foreach (CodeInstruction instruction in body)
+            {
+                MethodInfo method = instruction.operand as MethodInfo;
+                if (method != null && method.Name == "AcknowledgeTrigger" && method.DeclaringType == listener)
+                {
+                    var duplicate = new CodeInstruction(OpCodes.Dup);
+                    duplicate.labels.AddRange(instruction.labels);
+                    instruction.labels.Clear();
+                    duplicate.blocks.AddRange(instruction.blocks);
+                    instruction.blocks.Clear();
+                    yield return duplicate;
+                    yield return new CodeInstruction(OpCodes.Call, before);
+                }
+                yield return instruction;
+            }
         }
 
         private static void TrySave(string reason)

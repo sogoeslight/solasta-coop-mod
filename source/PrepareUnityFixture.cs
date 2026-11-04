@@ -19,9 +19,21 @@ public static class PrepareUnityFixture
                         il.Append(il.Create(OpCodes.Ldc_R4, name == "get_deltaTime" ? 0.02f : 10f));
                         il.Append(il.Create(OpCodes.Ret));
                     }
+            var preferences = assembly.MainModule.GetType("UnityEngine.PlayerPrefs");
+            foreach (var method in preferences.Methods)
+                if (((method.Name == "GetInt" || method.Name == "GetFloat") && method.Parameters.Count == 2) ||
+                    ((method.Name == "SetInt" || method.Name == "SetFloat") && method.Parameters.Count == 2) ||
+                    (method.Name == "Save" && method.Parameters.Count == 0))
+                {
+                    method.ImplAttributes = MethodImplAttributes.IL | MethodImplAttributes.Managed;
+                    method.Body = new MethodBody(method);
+                    var il = method.Body.GetILProcessor();
+                    if (method.Name == "GetInt" || method.Name == "GetFloat") il.Append(il.Create(OpCodes.Ldarg_1));
+                    il.Append(il.Create(OpCodes.Ret));
+                }
             assembly.Write(args[1]);
         }
-        Console.WriteLine("Created an isolated test-only Unity time shim.");
+        Console.WriteLine("Created isolated test-only Unity time and preference shims.");
         return 0;
     }
 }

@@ -50,7 +50,7 @@ checks = {
     'Native loot source compiled': 'source / "LootShare.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
     'Safety disables HUD after game actor mapping errors': 'gameCharacterMappingError' in hud,
     'Battle snapshot records active turn identity': 'activeGuid=' in (root / 'RuntimeDiagnostics.cs').read_text(encoding="utf-8"),
-    'Combat speed x2 default': 'Factor { get; private set; } = 2f' in combat,
+    'Requested speed defaults': 'DefaultCombatFactor = 1.5f' in combat and 'DefaultExplorationFactor = 1.75f' in combat,
     'Separate native combat and exploration movement': 'CombatSpeed.ExplorationFactor' in (root / 'MovementSpeed.cs').read_text(encoding='utf-8') and 'GetForwardedAdjustedTime' in (root / 'MovementSpeed.cs').read_text(encoding='utf-8'),
     'Combat speed does not change game timescale': 'Time.timeScale =' not in combat and 'Time.fixedDeltaTime =' not in combat,
     'Combat animation and VFX acceleration': 'AccelerateAnimators();' in combat and 'AccelerateLegacyAnimations();' in combat and 'AccelerateParticles();' in combat,

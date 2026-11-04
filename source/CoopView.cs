@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.21.0")]
+[assembly: AssemblyVersion("0.1.22.0")]
 
 namespace Doorstop
 {
@@ -182,11 +182,6 @@ namespace SolastaCoop
             Application.logMessageReceivedThreaded += UnityLog;
             DetailedTooltips.SetEnabled(true);
             CameraZoom.SetFactor(1.4f);
-            SessionSettings.Load();
-            MovementSpeed.Install();
-            DialogueChoices.Install();
-            DialogueAutosave.Install();
-            LootConvenience.Install();
             ItemTransferRange.Install();
             try { ConnectionRetry.Install(); }
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
@@ -269,9 +264,13 @@ namespace SolastaCoop
         private void Update()
         {
             CameraZoom.Tick();
-            SessionSettings.Tick();
-            CombatSpeed.Tick();
-            LootConvenience.Tick();
+            GameplayFeatures.InitializeIfReady();
+            if (GameplayFeatures.Initialized)
+            {
+                SessionSettings.Tick();
+                CombatSpeed.Tick();
+                LootConvenience.Tick();
+            }
             autoFastTravelVote.Tick();
             if (hostMoveShare != null) hostMoveShare.Tick();
             if (!autoFastTravelVote.VotePending) autoFollow.Tick();

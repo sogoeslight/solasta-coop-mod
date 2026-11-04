@@ -2,14 +2,14 @@
 
 Quality-of-life improvements for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op. Configure the mod with **F8**.
 
-**Version 0.1.21** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
+**Version 0.1.22** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
 
 ## Features
 
 | Feature | What it does | Control |
 | --- | --- | --- |
-| Combat speed | Accelerates actual movement, movement waits, animations and VFX | F8 → Speed, ×1–×3, default ×2 |
-| Exploration speed | Accelerates character movement around locations; cinematic movement keeps native timing | F8 → Speed, ×1–×3, default ×2 |
+| Combat speed | Accelerates actual movement, movement waits, animations and VFX | F8 → Speed, ×1–×3, default ×1.5 |
+| Exploration speed | Accelerates character movement around locations; cinematic movement keeps native timing | F8 → Speed, ×1–×3, default ×1.75 |
 | Dialogue votes | Vanilla, follow the host without guest clicks, or equal votes with a random tie-break (50/50 for two different votes) | F8 → Dialogue, default Random tie |
 | Dialogue autosave | Native checkpoint before dialogue interactions and trigger acknowledgement, when the game allows saving | F8 → Dialogue, on |
 | Empty loot | Closes a chest, corpse or ground-loot window after the final item transfer completes | F8 → Loot, on |

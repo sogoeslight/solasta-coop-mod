@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.22
+
+- Defers new gameplay hook initialization until a location is loaded, keeping the Bootstrap scene on the previous startup path.
+- Replaces autosave detours on empty virtual acknowledgement methods with a call-site hook before trigger acknowledgement.
+- Adds initialization-stage logging and a startup regression fixture with a genuinely empty virtual game-shaped method.
+- Sets default exploration movement speed to ×1.75 and combat speed to ×1.5, while retaining saved custom values.
+- Corrects the native loader log version label.
+
 ## 0.1.21
 
 - Actual combat movement and baked movement waits now use the speed multiplier.

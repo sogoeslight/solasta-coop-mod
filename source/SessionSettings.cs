@@ -15,7 +15,7 @@ namespace SolastaCoop
         private static object lastRoom;
         private static string published;
         private static float nextPoll;
-        private static float localCombat = 2f, localExploration = 2f;
+        private static float localCombat = CombatSpeed.DefaultCombatFactor, localExploration = CombatSpeed.DefaultExplorationFactor;
         private static int localDialogue = 2;
         internal static string Status { get; private set; } = "Local settings.";
 
@@ -26,8 +26,8 @@ namespace SolastaCoop
 
         internal static void Load()
         {
-            localCombat = PlayerPrefs.GetFloat("SolastaCoopMod.CombatSpeed", 2f);
-            localExploration = PlayerPrefs.GetFloat("SolastaCoopMod.ExplorationSpeed", 2f);
+            localCombat = PlayerPrefs.GetFloat("SolastaCoopMod.CombatSpeed", CombatSpeed.DefaultCombatFactor);
+            localExploration = PlayerPrefs.GetFloat("SolastaCoopMod.ExplorationSpeed", CombatSpeed.DefaultExplorationFactor);
             localDialogue = Math.Max(0, Math.Min(2, PlayerPrefs.GetInt("SolastaCoopMod.DialogueMode", 2)));
             Apply(localCombat, localExploration, localDialogue);
         }
