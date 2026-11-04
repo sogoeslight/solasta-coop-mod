@@ -2,7 +2,7 @@
 
 Quality-of-life improvements for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op. Configure the mod with **F8**.
 
-**Version 0.1.25** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
+**Version 0.1.26** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
 
 ## Features
 

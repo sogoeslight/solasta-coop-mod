@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.26
+
+- Uses stable saved hero names for identity in the lobby, remote snapshots and loaded party. Lobby ordering now carries over even when clients display differently filtered names.
+- Adds fixture coverage using filtered-name scenarios and the real game's GuiCharacter, hero snapshots and loaded hero identity.
+
 ## 0.1.25
 
 - Adds host-controlled party ordering directly above the multiplayer lobby character cards. Select one slot, then another to exchange their positions; select the source again to cancel.

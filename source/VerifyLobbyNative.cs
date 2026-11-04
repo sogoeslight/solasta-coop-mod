@@ -52,6 +52,22 @@ public static class VerifyLobbyNative
             "Native sort indexes and party-composition notification update together");
         swap.Invoke(manager, new object[] { -1, 3 }); swap.Invoke(manager, new object[] { 0, 4 });
         Check(changed == 1 && party.Count == 4, "Native invalid-slot guards leave the party intact");
+        Set(heroes[0], "displayName", "Filtered hero name");
+        Set(heroes[0], "name", "Raw saved hero name");
+        object guiCharacter = FormatterServices.GetUninitializedObject(game.GetType("GuiCharacter", true));
+        Set(guiCharacter, "rulesetCharacterHero", heroes[0]);
+        object carriedName = plugin.GetType("SolastaCoop.LobbyPartyOrder", true).GetMethod("CharacterName", Flags)
+            .Invoke(null, new[] { heroes[0] });
+        object lobbyName = plugin.GetType("SolastaCoop.LobbyPartyOrder", true).GetMethod("CharacterName", Flags)
+            .Invoke(null, new[] { guiCharacter });
+        object snapshot = FormatterServices.GetUninitializedObject(game.GetType("RulesetCharacterHero+Snapshot", true));
+        Set(snapshot, "Name", "Raw saved hero name"); Set(snapshot, "DisplayName", "Another client filter");
+        object remoteGui = FormatterServices.GetUninitializedObject(game.GetType("GuiCharacter", true)); Set(remoteGui, "snapshot", snapshot);
+        object snapshotName = plugin.GetType("SolastaCoop.LobbyPartyOrder", true).GetMethod("CharacterName", Flags)
+            .Invoke(null, new[] { remoteGui });
+        Check(object.Equals(carriedName, lobbyName) && object.Equals(carriedName, snapshotName) &&
+            object.Equals(carriedName, "Raw saved hero name") && object.Equals(Property(guiCharacter, "Name"), "Filtered hero name"),
+            "Real local lobby, remote snapshot and loaded hero identities match despite different display filters");
         Console.WriteLine("Native lobby carryover checks: PASS (real Solasta 1.5.97 method IL; no live lobby or Unity rendering)");
         return 0;
     }

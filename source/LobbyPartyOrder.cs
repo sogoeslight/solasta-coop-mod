@@ -93,7 +93,9 @@ namespace SolastaCoop
         }
         private static string CharacterName(object character)
         {
-            return Read.Get(character, "Name") as string;
+            object source = Read.Get(character, "rulesetCharacterHero") ?? Read.Get(character, "rulesetCharacter") ??
+                Read.Get(character, "snapshot");
+            return (Read.Get(source, "Name") as string) ?? (Read.Get(character, "Name") as string);
         }
 
         internal void Tick()

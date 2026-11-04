@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.25.0")]
+[assembly: AssemblyVersion("0.1.26.0")]
 
 namespace Doorstop
 {

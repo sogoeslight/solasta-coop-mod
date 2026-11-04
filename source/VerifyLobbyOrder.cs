@@ -11,7 +11,8 @@ public static class Gui { public static object GameLocation = new object(), Batt
 public sealed class LobbyFixtureCanvas { public bool interactable = true; }
 public sealed class LobbyFixturePanel { public bool ActionTaken; public LobbyFixtureCanvas CanvasGroup = new LobbyFixtureCanvas(); }
 public sealed class LobbyFixtureSession { public object Session = new object(); }
-public sealed class LobbyFixtureHero { public string Name; public ulong Guid; public int Owner, SortIndex; }
+public sealed class LobbyFixtureHero { public string Name, DisplayName; public ulong Guid; public int Owner, SortIndex; }
+public sealed class LobbyFixtureGuiHero { public LobbyFixtureHero rulesetCharacterHero; public string Name = "Filtered UI name"; }
 public sealed class LobbyFixtureCharacter { public LobbyFixtureHero RulesetCharacter; }
 public sealed class LobbyFixtureCharacters
 {
@@ -187,6 +188,20 @@ public static class VerifyLobbyOrder
         Gui.Battle = null; Call(joiningGuest, "ApplyInGame");
         Check(ServiceRepository.Characters.PartyCharacters.Select(c => c.RulesetCharacter.Name).SequenceEqual(desired),
             "A guest joining later applies the shared order without writing room or ownership properties");
+        object censored = Fresh(); room = Photon.Pun.PhotonNetwork.CurrentRoom;
+        foreach (var character in ServiceRepository.Characters.PartyCharacters)
+        {
+            character.RulesetCharacter.DisplayName = character.RulesetCharacter.Name;
+            character.RulesetCharacter.Name = "raw_" + character.RulesetCharacter.Name;
+        }
+        string[] rawNames = Names.Select(n => "raw_" + n).ToArray(), rawDesired = desired.Select(n => "raw_" + n).ToArray();
+        room.CustomProperties[Key] = Packet(rawNames, rawDesired);
+        var wrapper = new LobbyFixtureGuiHero { rulesetCharacterHero = ServiceRepository.Characters.PartyCharacters[0].RulesetCharacter };
+        Check((string)adapter.GetMethod("CharacterName", Flags).Invoke(null, new object[] { wrapper }) == "raw_Ranger",
+            "Lobby identity comes from the saved hero rather than a client-specific filtered label");
+        Call(censored, "ApplyInGame");
+        Check(ServiceRepository.Characters.PartyCharacters.Select(c => c.RulesetCharacter.Name).SequenceEqual(rawDesired),
+            "Different display filters cannot prevent the saved hero order from carrying into the game");
         Console.WriteLine("Lobby order checks: PASS (policy, host/guest publishing, ownership and loading fixtures; Unity card layout not rendered)");
         return 0;
     }
