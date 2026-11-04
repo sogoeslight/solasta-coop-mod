@@ -168,6 +168,31 @@ public static class VerifyApi
         Assembly ui = Assembly.LoadFrom(Path.Combine(managed, "UnityEngine.UI.dll"));
         Check(ui.GetType("UnityEngine.UI.Image", true).GetProperty("raycastTarget", Flags) != null &&
             ui.GetType("UnityEngine.UI.GraphicRaycaster", true) != null, "Transparent input shield blocks native UI raycasts beneath the travel preview");
+        Type worldCharacter = type("WorldLocationCharacter");
+        var progress = worldCharacter.GetMethod("GetForwardedAdjustedTime", Flags);
+        Check(progress != null && progress.ReturnType == typeof(float) && progress.GetParameters().Length == 2 &&
+            progress.GetParameters().All(p => p.ParameterType == typeof(float)), "Native movement interpolation clock");
+        foreach (string name in new[] { "WaitForEvent", "AnimateMove" })
+            Check(worldCharacter.GetMethod(name, Flags).GetCustomAttributes(false).Any(a =>
+                a.GetType().FullName == "System.Runtime.CompilerServices.IteratorStateMachineAttribute"), "Native movement iterator " + name);
+        Check(type("WorldGadgetHighlightSwapper").GetMethod("RefreshVisibility", Flags) != null &&
+            type("WorldGadgetHighlightSwapper").GetField("wantedVisible", Flags) != null &&
+            type("WorldGadgetHighlightSwapper").GetField("worldGadget", Flags) != null, "Reversible empty-container highlight filtering");
+        Check(type("RulesetContainer").GetProperty("InventorySlots", Flags) != null &&
+            type("RulesetContainer").GetProperty("HasBeenOpenedOnce", Flags) != null, "Container content and visitation state");
+        Check(type("LootEnumerationModal").GetMethod("OnCancelCb", Flags) != null &&
+            type("LootEnumerationModal").GetField("itemsToLootCache", Flags) != null &&
+            type("LootEnumerationModal").GetField("groundSlots", Flags) != null, "Native empty-loot close and pending-transfer queue");
+        Check(type("NarrativeStateAnswerChoice").GetMethod("GetVoteWinner", Flags).GetParameters().All(p => p.IsOut) &&
+            type("NarrativeStateAnswerChoice").GetMethod("CompleteVotingSession", Flags).GetParameters()[0].ParameterType == typeof(int),
+            "Native vote resolver and completion hook signatures");
+        Check(type("NetworkTick").GetProperty("LocalTick", Flags) != null &&
+            type("NetworkingDefinitions+PlayerInfo").GetField("actorNumber", Flags) != null &&
+            type("EditableStateDescription").GetProperty("Index", Flags) != null, "Synchronized dialogue context and player identity");
+        Check(type("GameSerializationManager").GetMethod("AutoSaveGame", Flags).GetParameters().Length == 0 &&
+            type("GameSerializationManager").GetProperty("CanSave", Flags) != null &&
+            type("GameGadgetListener").GetMethod("AcknowledgeTrigger", Flags).GetParameters().Length == 0,
+            "Native pre-trigger autosave and permission checks");
         Console.WriteLine("API failures: " + failures);
         return failures == 0 ? 0 : 1;
     }

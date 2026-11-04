@@ -38,7 +38,8 @@ The workflow first checks the Nexus file's existing versions via API v3 and abor
 
 ## Notes
 
-- The automation is manual until you explicitly enable an automatic release-to-Nexus step.
+- A successful main-branch Windows build with a `[release vX.Y.Z]` commit marker publishes that exact GitHub release to Nexus after duplicate/version/asset checks. Other pushes do not upload.
+- The same workflow updates the file notes, mod changelog, summary and full BBCode description through the author API, with exact description readback. Manual dry-run runs remain available.
 - Nexus may quarantine DLL-based uploads for inspection. Follow their moderation guidance if that happens.
 - The Nexus action uses versioned GitHub Releases; it does not rebuild the mod and does not change GitHub Release assets.
 - Automatic Vortex/mod-manager installation is disabled because this mod requires placing a proxy DLL beside `Solasta.exe`.

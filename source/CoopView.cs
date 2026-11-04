@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.20.0")]
+[assembly: AssemblyVersion("0.1.21.0")]
 
 namespace Doorstop
 {
@@ -150,7 +150,6 @@ namespace SolastaCoop
         private bool visible = true, follow = true;
         private int tab, selected;
         private float preferredCameraZoom = 1.4f;
-        private float preferredCombatSpeed = 2f;
         private float nextRefresh;
         private Vector2 scroll;
         private string heading = "Load a save or start a new game.", error = "", details = "";
@@ -183,6 +182,11 @@ namespace SolastaCoop
             Application.logMessageReceivedThreaded += UnityLog;
             DetailedTooltips.SetEnabled(true);
             CameraZoom.SetFactor(1.4f);
+            SessionSettings.Load();
+            MovementSpeed.Install();
+            DialogueChoices.Install();
+            DialogueAutosave.Install();
+            LootConvenience.Install();
             ItemTransferRange.Install();
             try { ConnectionRetry.Install(); }
             catch (Exception e) { Log.Error("network", "Install connection retries", e); }
@@ -265,7 +269,9 @@ namespace SolastaCoop
         private void Update()
         {
             CameraZoom.Tick();
+            SessionSettings.Tick();
             CombatSpeed.Tick();
+            LootConvenience.Tick();
             autoFastTravelVote.Tick();
             if (hostMoveShare != null) hostMoveShare.Tick();
             if (!autoFastTravelVote.VotePending) autoFollow.Tick();
@@ -482,7 +488,7 @@ namespace SolastaCoop
                     autoFollow.SelectTarget(party[selected]);
                 }
             }
-            int newTab = GUILayout.SelectionGrid(tab, new[] { "Actions", "Spells", "Abilities", "Network", "Logs", "Camera", "Travel", "Loot", "Transfer", "Combat" }, 5);
+            int newTab = GUILayout.SelectionGrid(tab, new[] { "Actions", "Spells", "Abilities", "Network", "Logs", "Camera", "Travel", "Loot", "Transfer", "Speed", "Dialogue" }, 5);
             if (newTab != tab) { tab = newTab; details = ""; scroll = Vector2.zero; }
             if (!String.IsNullOrEmpty(error)) GUILayout.Label("Read error: " + error, textStyle);
             if (tab == 3) DrawNetwork();
@@ -492,6 +498,7 @@ namespace SolastaCoop
             else if (tab == 7) DrawLoot();
             else if (tab == 8) DrawTransfer();
             else if (tab == 9) DrawCombatSpeed();
+            else if (tab == 10) DrawDialogue();
             else
             {
                 GUILayout.Label("Teammate actions and abilities (read-only).", textStyle);
@@ -597,6 +604,13 @@ namespace SolastaCoop
             GUILayout.Label(lootShare.Status, textStyle);
             GUILayout.Label("Players loot with their own heroes; game-side range rules may still apply.", textStyle);
             if (GUILayout.Button("Close shared loot window")) lootShare.ClosePreview();
+            GUILayout.Space(8);
+            bool close = GUILayout.Toggle(LootConvenience.AutoClose, "Close loot window when its source is empty");
+            if (close != LootConvenience.AutoClose) LootConvenience.SetAutoClose(close);
+            bool hide = GUILayout.Toggle(LootConvenience.HideEmpty, "Hide highlights of opened empty containers");
+            if (hide != LootConvenience.HideEmpty) LootConvenience.SetHideEmpty(hide);
+            GUILayout.Label("Unopened containers remain highlighted. Other interactions remain available.", textStyle);
+            GUILayout.Label(LootConvenience.Status, textStyle);
         }
 
         private void DrawDiagnostics()
@@ -650,25 +664,43 @@ namespace SolastaCoop
 
         private void DrawCombatSpeed()
         {
-            bool speedEnabled = CombatSpeed.Factor > 1f;
-            bool nextEnabled = GUILayout.Toggle(speedEnabled, "Speed up combat animations");
-            if (nextEnabled != speedEnabled)
-                CombatSpeed.SetFactor(nextEnabled ? Math.Max(1.25f, preferredCombatSpeed) : 1f);
-            if (CombatSpeed.Factor > 1f)
-            {
-                GUILayout.Label("Animation speed: ×" + CombatSpeed.Factor.ToString("0.00"), titleStyle);
-                float factor = GUILayout.HorizontalSlider(CombatSpeed.Factor, 1.25f, 3f);
-                if (Math.Abs(factor - CombatSpeed.Factor) > 0.125f)
-                    CombatSpeed.SetFactor(factor);
-                preferredCombatSpeed = CombatSpeed.Factor;
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("×1.25")) CombatSpeed.SetFactor(1.25f);
-                if (GUILayout.Button("×2")) CombatSpeed.SetFactor(2f);
-                if (GUILayout.Button("×3")) CombatSpeed.SetFactor(3f);
-                GUILayout.EndHorizontal();
-                preferredCombatSpeed = CombatSpeed.Factor;
-            }
-            GUILayout.Label("Speeds up animations and VFX during combat; turn timers stay unchanged.", textStyle);
+            bool previous = GUI.enabled;
+            GUI.enabled = previous && SessionSettings.CanEdit;
+            DrawSpeedControl("Combat movement, animations and VFX", CombatSpeed.Factor, CombatSpeed.SetFactor);
+            DrawSpeedControl("Exploration movement", CombatSpeed.ExplorationFactor, CombatSpeed.SetExplorationFactor);
+            GUI.enabled = previous;
+            GUILayout.Label(SessionSettings.Status, textStyle);
+            GUILayout.Label("Separate ×1–×3 sliders, step 0.25. ×1 restores vanilla speed. Cinematic movement stays native.", textStyle);
+            GUILayout.Label(MovementSpeed.Status, textStyle);
+            GUILayout.Label(CombatSpeed.Status, textStyle);
+        }
+
+        private void DrawSpeedControl(string label, float current, Action<float> set)
+        {
+            GUILayout.Label(label + ": ×" + current.ToString("0.00"), titleStyle);
+            float factor = GUILayout.HorizontalSlider(current, 1f, 3f);
+            if (Math.Abs(factor - current) > 0.125f) { set(factor); SessionSettings.Changed(); }
+            GUILayout.BeginHorizontal();
+            foreach (float preset in new[] { 1f, 2f, 3f })
+                if (GUILayout.Button("×" + preset.ToString("0"))) { set(preset); SessionSettings.Changed(); }
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawDialogue()
+        {
+            bool previous = GUI.enabled;
+            GUI.enabled = previous && SessionSettings.CanEdit;
+            GUILayout.Label("Multiplayer dialogue choice", titleStyle);
+            int mode = GUILayout.SelectionGrid((int)DialogueChoices.Mode, new[] { "Vanilla", "Follow host", "Random tie" }, 3);
+            if (mode != (int)DialogueChoices.Mode) { DialogueChoices.SetMode((DialogueMode)mode); SessionSettings.Changed(); }
+            bool autosave = GUILayout.Toggle(DialogueAutosave.Enabled, "Autosave before dialogue interactions and triggers");
+            if (autosave != DialogueAutosave.Enabled) DialogueAutosave.SetEnabled(autosave);
+            GUI.enabled = previous;
+            GUILayout.Label("Follow host resolves as soon as the host chooses. Random tie gives all players equal votes and draws once on the host when tied (50/50 for two different votes).", textStyle);
+            GUILayout.Label("Policy changes apply to the next choice. Checkpoints respect native save restrictions; choices and rolls inside an active dialogue cannot be restored separately.", textStyle);
+            GUILayout.Label(SessionSettings.Status, textStyle);
+            GUILayout.Label(DialogueChoices.Status, textStyle);
+            GUILayout.Label(DialogueAutosave.Status, textStyle);
         }
 
         private void DrawCamera()

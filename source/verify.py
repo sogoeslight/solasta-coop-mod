@@ -14,6 +14,7 @@ def main():
     parser.add_argument("--mono", required=True, type=Path)
     parser.add_argument("--mono-config", type=Path)
     parser.add_argument("--mono-libraries", type=Path)
+    parser.add_argument("--cecil", type=Path, help="Optional Mono-compatible Mono.Cecil.dll for isolated movement fixtures")
     args = parser.parse_args()
     source = Path(__file__).resolve().parent
     output = source.parent / "build"
@@ -30,6 +31,8 @@ def main():
         "VerifyTooltips": [],
         "VerifyConnectionRetry": [source / "RetryBudget.cs", source / "VerifyHover.cs", source / "VerifyRuntime.cs"],
         "VerifyTravelShare": [source / "TravelWire.cs"],
+        "VerifyVotePolicy": [source / "VotePolicy.cs"],
+        "VerifyDialogue": [],
     }
     references = ["mscorlib", "System", "System.Core"]
     environment = os.environ.copy()
@@ -50,6 +53,22 @@ def main():
         environment["LD_LIBRARY_PATH"] = str(libraries) + os.pathsep + environment.get("LD_LIBRARY_PATH", "")
         search.insert(0, str(libraries / "mono/4.5"))
     environment["MONO_PATH"] = os.pathsep.join(search)
+    if args.cecil:
+        helper = output / "PrepareUnityFixture.exe"
+        compiler = [args.dotnet, args.csc, "/nologo", "/nostdlib+", "/target:exe", "/out:" + str(helper)]
+        compiler += ["/r:" + str(managed / (name + ".dll")) for name in references]
+        compiler += ["/r:" + str(args.cecil.resolve()), source / "PrepareUnityFixture.cs"]
+        subprocess.run([str(part) for part in compiler], check=True)
+        shim = output / "movement-runtime"
+        shim.mkdir(exist_ok=True)
+        helper_env = environment.copy()
+        helper_env["MONO_PATH"] = str(args.cecil.resolve().parent) + os.pathsep + environment["MONO_PATH"]
+        command = [str(args.mono)]
+        if args.mono_config:
+            command += ["--config", str(args.mono_config)]
+        command += [str(helper), str(managed / "UnityEngine.CoreModule.dll"), str(shim / "UnityEngine.CoreModule.dll")]
+        subprocess.run(command, env=helper_env, check=True)
+        fixtures["VerifyMovement"] = []
     reports = []
     failed = []
     for name, extra in fixtures.items():
@@ -57,6 +76,8 @@ def main():
         compiler = [args.dotnet, args.csc, "/nologo", "/nostdlib+", "/target:exe", "/optimize+",
                     "/main:" + name, "/out:" + str(executable)]
         compiler += ["/r:" + str(managed / (name + ".dll")) for name in references]
+        if name == "VerifyMovement":
+            compiler += ["/r:" + str(managed / "UnityEngine.CoreModule.dll")]
         compiler += [source / (name + ".cs")] + extra
         subprocess.run([str(part) for part in compiler], check=True)
         command = [str(args.mono)]
@@ -67,7 +88,10 @@ def main():
             command.append(str(managed))
         elif name not in ("VerifyTransport", "VerifyDiagnostics"):
             command.append(str(output / "SolastaCoopMod.dll"))
-        result = subprocess.run(command, env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        fixture_env = environment.copy()
+        if name == "VerifyMovement":
+            fixture_env["MONO_PATH"] = str(shim) + os.pathsep + environment["MONO_PATH"]
+        result = subprocess.run(command, env=fixture_env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
         (output / (name + "-check.txt")).write_text(result.stdout, encoding="utf-8")
         print(name + ": " + ("PASS" if result.returncode == 0 else "FAIL"), flush=True)
         reports.append(name + "\n" + result.stdout)

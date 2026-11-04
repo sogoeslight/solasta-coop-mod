@@ -69,6 +69,7 @@ public static class VerifyRuntime
         object writer = Activator.CreateInstance(writerType, Flags, null, new object[] { isolated, 1048576L, 3 }, null);
         plugin.GetType("SolastaCoop.Log", true).GetField("Writer", Flags).SetValue(null, writer);
         Type type = plugin.GetType("SolastaCoop.RuntimeDiagnostics", true);
+        string version = (string)plugin.GetType("SolastaCoop.BuildInfo", true).GetField("Version", Flags).GetRawConstantValue();
         object runtime = Activator.CreateInstance(type, true);
         Action<string, object[]> call = (name, values) => type.GetMethod(name, Flags).Invoke(runtime, values);
         Func<string, string> get = name => (string)type.GetProperty(name, Flags).GetValue(runtime, null);
@@ -92,7 +93,7 @@ public static class VerifyRuntime
         Photon.Pun.PhotonNetwork.OfflineMode = true;
         first.Respond(227, 32758);
         call("Tick", new object[] { true });
-        Check(Directory.GetFiles(isolated, "diagnostics-0.1.10-*.txt").Length > 0,
+        Check(Directory.GetFiles(isolated, "diagnostics-" + version + "-*.txt").Length > 0,
             "Rejected operations automatically save a failure report on the main tick");
         File.Delete((string)writerType.GetMethod("FilePath", Flags).Invoke(writer, new object[] { "network", 0 }));
         Check(get("LatestNetwork").Contains("disconnectCause=ClientTimeout"), "Runtime records the Photon disconnection cause");
@@ -120,7 +121,7 @@ public static class VerifyRuntime
         string root = Path.GetDirectoryName(report);
         for (int i = 0; i < 6; i++)
             Check(type.GetMethod("SaveReport", Flags).Invoke(runtime, null) != null, "Report save succeeds " + i);
-        Check(Directory.GetFiles(root, "diagnostics-0.1.10-*.txt").Length == 5, "Report retention keeps five reports");
+        Check(Directory.GetFiles(root, "diagnostics-" + version + "-*.txt").Length == 5, "Report retention keeps five reports");
         var replacement = new Photon.Pun.FakeClient();
         Photon.Pun.PhotonNetwork.NetworkingClient = replacement;
         call("Tick", new object[] { true });

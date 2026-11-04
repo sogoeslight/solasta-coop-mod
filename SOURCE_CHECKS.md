@@ -16,3 +16,10 @@ Test intentions in `VerifyObserverHud.cs`:
 - Unrelated combat categories remain disabled.
 
 The host's TCP trace demonstrates successful connection/authentication to the GameServer followed by a joining timeout and then Photon `32766` on duplicate CreateRoom. It does not establish the upstream packet filtering mechanism.
+
+
+## Version 0.1.21 checks
+
+`verify.py` includes native API checks and real Harmony dialogue fixtures, plus pure vote-policy cases. Pass `--cecil /path/to/Mono.Cecil.dll` (a Mono-compatible build) to include movement fixtures. The harness creates an isolated copy of Unity CoreModule with deterministic time getters under the ignored build directory; game references and distributed binaries are never modified. Movement checks measure completion frames at x1/x2/x3, destination preservation, baked waits, walking blend compensation, independent exploration speed and cinematic exclusion.
+
+No fixture replaces a live host/client gameplay test.

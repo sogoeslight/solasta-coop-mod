@@ -1,6 +1,18 @@
 using System;
 using SolastaCoop;
 
+namespace SolastaCoop
+{
+    internal static class Read
+    {
+        internal static object Get(object target, string name)
+        {
+            var field = target.GetType().GetField(name);
+            return field == null ? null : field.GetValue(target);
+        }
+    }
+}
+
 public static class VerifyTransport
 {
     public enum Protocol { Udp, Tcp }

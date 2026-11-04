@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.21
+
+- Actual combat movement and baked movement waits now use the speed multiplier.
+- Separate combat and exploration sliders from ×1 to ×3, with ×1/×2/×3 presets.
+- Host-synchronized speed and dialogue policies, with persistent preferences.
+- Automatic close for empty chest, corpse and ground-loot windows after transfers finish.
+- Optional suppression of opened empty container highlights.
+- Native pre-dialogue checkpoints before interactions and scripted trigger acknowledgement, respecting save restrictions.
+- Vanilla, Follow host and Random tie voting; equal votes, a single host-authored outcome and 50/50 resolution for a two-player tie.
+- Switching between Warlock invocation and pact spell previews no longer closes the new selector.
+
+
 This project is a reconstructed source history from archived development snapshots. Changes below describe intended functionality, not confirmed multiplayer behavior or release certification.
 
 ## 0.1.20 (experimental)

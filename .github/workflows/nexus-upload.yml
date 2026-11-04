@@ -1,6 +1,10 @@
 name: Upload release to Nexus Mods
 
 on:
+  workflow_run:
+    workflows: ["Windows build and release"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
@@ -18,22 +22,34 @@ permissions:
   contents: read
 
 concurrency:
-  group: nexus-upload-${{ inputs.version }}
+  group: nexus-upload-${{ inputs.version || github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 jobs:
   upload:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '[release v')) }}
     name: Validate and optionally upload DLL archive to Nexus Mods
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve release context
+        id: release
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+          MANUAL_DRY_RUN: ${{ inputs.dry_run }}
+        run: python source/nexus_release_context.py
+
       - name: Check Nexus credentials and version
         shell: bash
         env:
           NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
           NEXUS_FILE_ID: ${{ vars.NEXUSMODS_FILE_ID }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           if [[ -z "$NEXUS_API_KEY" ]]; then
@@ -54,7 +70,7 @@ jobs:
         env:
           NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
           NEXUS_FILE_ID: ${{ vars.NEXUSMODS_FILE_ID }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           versions_json="$RUNNER_TEMP/nexus-mod-file-versions.json"
@@ -78,11 +94,17 @@ jobs:
 
           echo "Nexus file exists and version $RELEASE_VERSION is not present."
 
+      - name: Resolve Nexus mod identity
+        id: mod
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+        run: python source/publish_nexus_description.py --resolve-only
+
       - name: Verify GitHub Release contains winhttp.dll
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           if ! gh release view "v$RELEASE_VERSION" \
@@ -104,7 +126,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p nexus-input
@@ -113,38 +135,53 @@ jobs:
             --pattern "winhttp.dll" \
             --dir nexus-input
           test -s "nexus-input/winhttp.dll"
+          expected_sha="${{ steps.release.outputs.source_sha }}"
+          if [[ -n "$expected_sha" ]]; then
+            release_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/v$RELEASE_VERSION" --jq .sha)
+            test "$release_sha" = "$expected_sha"
+          fi
           cp "nexus-input/winhttp.dll" winhttp.dll
           file winhttp.dll
 
       - name: Package DLL for Nexus Mods
         shell: bash
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           zip -q -9 "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip" winhttp.dll
           unzip -l "Solasta-Coop-Mod-v$RELEASE_VERSION-Nexus.zip"
 
       - name: Report validation-only run
-        if: ${{ inputs.dry_run }}
+        if: ${{ steps.release.outputs.dry_run == 'true' }}
         shell: bash
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           echo "Dry run succeeded for version $RELEASE_VERSION."
           echo "Nothing was uploaded to Nexus Mods."
 
       - name: Upload new version to Nexus Mods
-        if: ${{ !inputs.dry_run }}
+        if: ${{ steps.release.outputs.dry_run == 'false' }}
         uses: Nexus-Mods/upload-action@v1.0.0-beta.10
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
-          filename: Solasta-Coop-Mod-v${{ inputs.version }}-Nexus.zip
-          version: ${{ inputs.version }}
-          display_name: Solasta Coop Mod v${{ inputs.version }}
+          filename: Solasta-Coop-Mod-v${{ steps.release.outputs.version }}-Nexus.zip
+          version: ${{ steps.release.outputs.version }}
+          display_name: Solasta Coop Mod v${{ steps.release.outputs.version }}
+          description: ${{ steps.release.outputs.notes }}
+          mod_id: ${{ steps.mod.outputs.mod_id }}
+          changelog: ${{ steps.release.outputs.notes }}
           category: main
           archive_existing_version: false
           allow_mod_manager_download: false
           primary_mod_manager_download: false
           update_mod_version: true
+
+      - name: Update Nexus description and verify published version
+        if: ${{ steps.release.outputs.dry_run == 'false' }}
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: python source/publish_nexus_description.py

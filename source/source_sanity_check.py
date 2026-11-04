@@ -51,12 +51,12 @@ checks = {
     'Safety disables HUD after game actor mapping errors': 'gameCharacterMappingError' in hud,
     'Battle snapshot records active turn identity': 'activeGuid=' in (root / 'RuntimeDiagnostics.cs').read_text(encoding="utf-8"),
     'Combat speed x2 default': 'Factor { get; private set; } = 2f' in combat,
-    'Combat speed restricts to battles': 'if (!inBattle || Factor <= 1f)' in combat,
+    'Separate native combat and exploration movement': 'CombatSpeed.ExplorationFactor' in (root / 'MovementSpeed.cs').read_text(encoding='utf-8') and 'GetForwardedAdjustedTime' in (root / 'MovementSpeed.cs').read_text(encoding='utf-8'),
     'Combat speed does not change game timescale': 'Time.timeScale =' not in combat and 'Time.fixedDeltaTime =' not in combat,
     'Combat animation and VFX acceleration': 'AccelerateAnimators();' in combat and 'AccelerateLegacyAnimations();' in combat and 'AccelerateParticles();' in combat,
     'Combat speed restores on exit': 'CombatSpeed.RestoreAll();' in hud,
     'Combat speed in build': 'source / "CombatSpeed.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
-    'Combat speed slider visible': 'GUILayout.HorizontalSlider(CombatSpeed.Factor, 1.25f, 3f)' in hud,
+    'Speed sliders include vanilla x1': 'GUILayout.HorizontalSlider(current, 1f, 3f)' in hud,
     'All optional features have toggles': all(value in hud for value in [
         'GUILayout.Toggle(follow,', 'GUILayout.Toggle(observerHud.Enabled,',
         'GUILayout.Toggle(DetailedTooltips.Enabled,', 'GUILayout.Toggle(showHoverRange,',
@@ -65,7 +65,8 @@ checks = {
         'GUILayout.Toggle(autoLoadingProceed.Enabled,', 'GUILayout.Toggle(lootShare.Enabled,',
         'GUILayout.Toggle(Log.Verbose,', 'GUILayout.Toggle(ItemTransferRange.Enabled,',
         'GUILayout.Toggle(autoFollow.Enabled,', 'GUILayout.Toggle(hostMoveShare.Enabled,',
-        'GUILayout.Toggle(speedEnabled,', 'GUILayout.Toggle(zoomEnabled,'
+        'GUILayout.Toggle(LootConvenience.AutoClose,', 'GUILayout.Toggle(LootConvenience.HideEmpty,',
+        'GUILayout.Toggle(DialogueAutosave.Enabled,', 'GUILayout.Toggle(zoomEnabled,'
     ]),
     'No experimental warnings in overlay': 'experimental' not in hud.lower(),
     'Renamed overlay': '"Solasta Coop Mod "' in hud,

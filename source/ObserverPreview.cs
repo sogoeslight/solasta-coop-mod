@@ -9,7 +9,7 @@ namespace SolastaCoop
     {
         private object previewPanel, previewActionType;
         private Delegate previewCancelled;
-        private string previewKind;
+        private string previewKind, previewSelector;
         private int previewsOpened, previewClicksBlocked;
         internal string DiagnosticSummary
         {
@@ -95,10 +95,14 @@ namespace SolastaCoop
             try
             {
                 object type = Read.Get(actionPanel, "ActionType");
+                object actual = Read.Get(action, "GuiCharacterAction") ?? action;
+                object definition = Read.Get(actual, "ActionDefinition");
+                string selector = Read.Text(Read.Get(definition, "Parameter")) + ":" +
+                    Read.Text(Read.Get(definition, "Id") ?? Read.Get(actual, "ActionId"));
                 Log.Event("core", "INFO", "Observer selector opened; kind=" + kind +
                     "; parameter=" + Read.Text(Read.Get(Read.Get(Read.Get(action, "GuiCharacterAction") ?? action,
                         "ActionDefinition"), "Parameter")) + "; actionType=" + Read.Text(type));
-                if (OwnsPreview() && kind == previewKind && Object.Equals(type, previewActionType) &&
+                if (OwnsPreview() && kind == previewKind && selector == previewSelector && Object.Equals(type, previewActionType) &&
                     Object.Equals(Read.Get(previewPanel, "Visible"), true)) { ClosePreview(); return; }
                 ClosePreview();
                 object menu = Read.Get(actionPanel, kind == "spell" ? "SpellSelectionPanel" : "PowerSelectionPanel");
@@ -108,7 +112,7 @@ namespace SolastaCoop
                     m.GetParameters().Length == (kind == "spell" ? 5 : 3));
                 if (bind == null) throw new MissingMethodException(menu.GetType().Name, "Bind");
                 ParameterInfo[] p = bind.GetParameters();
-                previewPanel = menu; previewKind = kind; previewActionType = type;
+                previewPanel = menu; previewKind = kind; previewActionType = type; previewSelector = selector;
                 previewCancelled = Callback(p[1].ParameterType, "ClosePreview");
                 Delegate inert = Callback(p[2].ParameterType, "PreviewItemClicked");
                 SetMember(menu, "ActionType", type);
@@ -138,7 +142,7 @@ namespace SolastaCoop
         {
             try { if (OwnsPreview()) Invoke(previewPanel, "Hide", true); }
             catch (Exception e) { Log.Error("core", "Close observer preview", e); }
-            finally { previewPanel = null; previewCancelled = null; previewKind = null; previewActionType = null; }
+            finally { previewPanel = null; previewCancelled = null; previewKind = null; previewActionType = null; previewSelector = null; }
         }
 
         private static void RefreshPreviewButton(object __instance)

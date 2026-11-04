@@ -51,7 +51,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m py_compile source/build.py source/verify.py source/source_sanity_check.py
+          python -m py_compile source/build.py source/verify.py source/source_sanity_check.py source/nexus_release_context.py source/publish_nexus_description.py
           if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed' }
           python source/source_sanity_check.py
           if ($LASTEXITCODE -ne 0) { throw 'Source sanity check failed' }
@@ -131,11 +131,12 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' || contains(github.event.head_commit.message, '[release v0.1.20]') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' || contains(github.event.head_commit.message, '[release v') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.version }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           $ErrorActionPreference = 'Stop'
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') {
@@ -143,15 +144,17 @@ jobs:
           } elseif (-not [string]::IsNullOrWhiteSpace($env:RELEASE_VERSION)) {
             $env:RELEASE_VERSION
           } else {
-            'v0.1.20'
+            if ($env:COMMIT_MESSAGE -notmatch '\[release (v\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.-]+)?)\]') { throw 'Release marker is missing' }
+            $Matches[1]
           }
           if ($tag -notmatch '^v\d+\.\d+\.\d+([.-][A-Za-z0-9.-]+)?$') {
             throw 'Release version should be v0.1.20 or v0.1.21-beta.1'
           }
           # gh release create exits with an error if the release already exists.
           # Never overwrite a published release's binaries.
-          $releaseNotes = if ($tag -eq 'v0.1.20') {
-            @('--notes-file', 'docs/RELEASE_v0.1.20.md')
+          $notesFile = "docs/RELEASE_$tag.md"
+          $releaseNotes = if (Test-Path $notesFile) {
+            @('--notes-file', $notesFile)
           } else {
             @('--generate-notes')
           }

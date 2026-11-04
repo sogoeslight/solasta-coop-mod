@@ -33,7 +33,8 @@ def main():
     command += [source / "CoopView.cs", source / "PhotonTransport.cs", source / "HoverRange.cs",
                 source / "DiagnosticsLog.cs", source / "RuntimeDiagnostics.cs", source / "LogLocation.cs",
                 source / "ObserverHud.cs", source / "ObserverPreview.cs", source / "HarmonySupport.cs", source / "CameraZoom.cs",
-                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "AutoFollow.cs", source / "HostMoveShare.cs", source / "AutoFastTravelVote.cs", source / "AutoLoadingProceed.cs", source / "ItemTransferRange.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs", source / "CombatSpeed.cs"]
+                source / "RetryBudget.cs", source / "ConnectionRetry.cs", source / "AutoFollow.cs", source / "HostMoveShare.cs", source / "AutoFastTravelVote.cs", source / "AutoLoadingProceed.cs", source / "ItemTransferRange.cs", source / "TravelShare.cs", source / "TravelWire.cs", source / "LootShare.cs", source / "CombatSpeed.cs",
+                source / "MovementSpeed.cs", source / "SessionSettings.cs", source / "VotePolicy.cs", source / "DialogueChoices.cs", source / "DialogueAutosave.cs", source / "LootConvenience.cs"]
     command += ["/resource:" + str(source / "vendor/harmony/0Harmony.dll") + ",SolastaCoop.Harmony"]
     run(command)
 

@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python syntax
-        run: python -m py_compile source/build.py source/verify.py source/source_sanity_check.py
+        run: python -m py_compile source/build.py source/verify.py source/source_sanity_check.py source/nexus_release_context.py source/publish_nexus_description.py
       - name: Static source invariants
         run: python source/source_sanity_check.py
       - name: No proprietary game DLLs committed
