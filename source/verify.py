@@ -70,6 +70,7 @@ def main():
         subprocess.run(command, env=helper_env, check=True)
         fixtures["VerifyMovement"] = []
         fixtures["VerifyStartup"] = []
+        fixtures["VerifyLoot"] = []
     reports = []
     failed = []
     for name, extra in fixtures.items():
@@ -77,7 +78,7 @@ def main():
         compiler = [args.dotnet, args.csc, "/nologo", "/nostdlib+", "/target:exe", "/optimize+",
                     "/main:" + name, "/out:" + str(executable)]
         compiler += ["/r:" + str(managed / (name + ".dll")) for name in references]
-        if name in ("VerifyMovement", "VerifyStartup"):
+        if name in ("VerifyMovement", "VerifyStartup", "VerifyLoot"):
             compiler += ["/r:" + str(managed / "UnityEngine.CoreModule.dll")]
         compiler += [source / (name + ".cs")] + extra
         subprocess.run([str(part) for part in compiler], check=True)
@@ -90,7 +91,7 @@ def main():
         elif name not in ("VerifyTransport", "VerifyDiagnostics"):
             command.append(str(output / "SolastaCoopMod.dll"))
         fixture_env = environment.copy()
-        if name in ("VerifyMovement", "VerifyStartup"):
+        if name in ("VerifyMovement", "VerifyStartup", "VerifyLoot"):
             fixture_env["MONO_PATH"] = str(shim) + os.pathsep + environment["MONO_PATH"]
         result = subprocess.run(command, env=fixture_env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
         (output / (name + "-check.txt")).write_text(result.stdout, encoding="utf-8")

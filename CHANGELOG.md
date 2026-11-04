@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.23
+
+- Fixes a reproduced native Mono crash during empty-loot initialization after existing shared-loot hooks have been installed. Removes the additional loot-window and highlight Harmony detours; the supplied 0.1.22 save-load log stopped inside this stage.
+- Keeps automatic empty-loot closing by observing native windows, waiting for pending transfers and a stable empty inventory, and invoking the native cancel handler once.
+- Keeps opened-empty-container highlight filtering through the original visibility method after gameplay updates. Disabling the option or refilling the container restores native highlighting; unopened containers remain visible.
+- Adds regression checks using the real Solasta 1.5.97 highlight implementation, existing shared-loot generic callbacks and isolated loot windows. The old installer aborts in this fixture; the new implementation passes. Default exploration speed remains ×1.75 and combat speed ×1.5.
+
 ## 0.1.22
 
 - Defers new gameplay hook initialization until a location is loaded, keeping the Bootstrap scene on the previous startup path.

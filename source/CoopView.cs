@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.22.0")]
+[assembly: AssemblyVersion("0.1.23.0")]
 
 namespace Doorstop
 {
@@ -230,6 +230,7 @@ namespace SolastaCoop
         }
         private void LateUpdate()
         {
+            LootConvenience.LateTick();
             if (gameCharacterMappingError)
             {
                 gameCharacterMappingError = false;

@@ -157,6 +157,11 @@ public static class VerifyStartup
             "Native save prohibition is respected without blocking dialogue execution");
         var swapper = new WorldGadgetHighlightSwapper(); swapper.worldGadget.GameGadget.ItemContainer = new FakeContainer();
         swapper.RefreshVisibility();
+        Check(PatchInfo(typeof(WorldGadgetHighlightSwapper).GetMethod("RefreshVisibility")) == null &&
+            PatchInfo(typeof(ContainerLootModal).GetMethod("ShowContainerLoot")) == null &&
+            PatchInfo(typeof(ProximityLootModal).GetMethod("ShowProximityLoot")) == null,
+            "Loot convenience adds no detours while gameplay features initialize");
+        plugin.GetType("SolastaCoop.LootConvenience", true).GetMethod("RefreshHighlight", Flags).Invoke(null, new object[] { swapper });
         Check(swapper.wantedVisible && !swapper.visible, "Empty highlight filtering preserves the native visibility request");
         initialize.Invoke(null, null);
         Check((bool)initialization.GetProperty("Initialized", Flags).GetValue(null, null), "Repeated initialization stays idempotent");

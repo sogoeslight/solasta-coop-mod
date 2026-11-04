@@ -9,7 +9,7 @@ namespace SolastaCoop
 {
     internal static class BuildInfo
     {
-        internal const string Version = "0.1.22";
+        internal const string Version = "0.1.23";
     }
 
     internal sealed class DiagnosticWriter

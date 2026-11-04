@@ -9,6 +9,7 @@ hud = (root / 'CoopView.cs').read_text(encoding="utf-8")
 verify_retry = (root / 'VerifyConnectionRetry.cs').read_text(encoding="utf-8")
 verify_hud = (root / 'VerifyObserverHud.cs').read_text(encoding="utf-8")
 loot = (root / 'LootShare.cs').read_text(encoding="utf-8")
+empty_loot = (root / 'LootConvenience.cs').read_text(encoding="utf-8")
 wire = (root / 'TravelWire.cs').read_text(encoding="utf-8")
 combat = (root / 'CombatSpeed.cs').read_text(encoding="utf-8")
 loading = (root / 'AutoLoadingProceed.cs').read_text(encoding="utf-8")
@@ -48,6 +49,8 @@ checks = {
     'Remote ground loot uses opener position': 'SubstituteProximitySource' in loot and 'CharacterSelectionChanged' in loot,
     'No gameplay RPC from loot share': 'LootItemFromContainer' not in loot and 'LootItemAtPositionByCharacter' not in loot,
     'Native loot source compiled': 'source / "LootShare.cs"' in (root / 'build.py').read_text(encoding="utf-8"),
+    'Empty loot uses no added native detours': 'HarmonySupport' not in empty_loot and 'HarmonyLib' not in empty_loot,
+    'Empty highlight filtering runs after gameplay updates': 'LootConvenience.LateTick();' in hud.split('private void LateUpdate()', 1)[1].split('private void Update()', 1)[0],
     'Safety disables HUD after game actor mapping errors': 'gameCharacterMappingError' in hud,
     'Battle snapshot records active turn identity': 'activeGuid=' in (root / 'RuntimeDiagnostics.cs').read_text(encoding="utf-8"),
     'Requested speed defaults': 'DefaultCombatFactor = 1.5f' in combat and 'DefaultExplorationFactor = 1.75f' in combat,

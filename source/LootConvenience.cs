@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using Object = System.Object;
@@ -11,11 +10,19 @@ namespace SolastaCoop
 {
     internal static class LootConvenience
     {
-        private sealed class WindowState { internal float Opened, EmptySince = -1f; }
-        private static readonly ConditionalWeakTable<object, WindowState> Windows = new ConditionalWeakTable<object, WindowState>();
+        private sealed class WindowState
+        {
+            internal object Source;
+            internal float Opened, EmptySince = -1f;
+            internal bool Closing;
+        }
+        private static ConditionalWeakTable<object, WindowState> windows = new ConditionalWeakTable<object, WindowState>();
+        private static readonly HashSet<object> suppressedHighlights = new HashSet<object>();
+        private static UnityEngine.Object[] highlightSwappers = new UnityEngine.Object[0];
         private static bool installed;
         private static float nextPoll, nextHighlightPoll;
         private static Type swapperType;
+        private static object location;
         internal static bool AutoClose { get; private set; } = true;
         internal static bool HideEmpty { get; private set; } = true;
         internal static string Status { get; private set; } = "Loot convenience is not initialized.";
@@ -28,19 +35,11 @@ namespace SolastaCoop
             try
             {
                 swapperType = Read.Type("WorldGadgetHighlightSwapper");
-                MethodInfo highlight = swapperType.GetMethod("RefreshVisibility", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                HarmonySupport.Patch(highlight,
-                    typeof(LootConvenience).GetMethod("FilterHighlight", BindingFlags.NonPublic | BindingFlags.Static),
-                    typeof(LootConvenience).GetMethod("RestoreHighlightRequest", BindingFlags.NonPublic | BindingFlags.Static));
-                foreach (string name in new[] { "ContainerLootModal", "ProximityLootModal" })
-                {
-                    Type type = Read.Type(name);
-                    MethodInfo show = type.GetMethod(name == "ContainerLootModal" ? "ShowContainerLoot" : "ShowProximityLoot",
-                        BindingFlags.Instance | BindingFlags.Public);
-                    HarmonySupport.Patch(show, postfix: typeof(LootConvenience).GetMethod("Opened", BindingFlags.NonPublic | BindingFlags.Static));
-                }
+                if (swapperType == null || Read.Type("ContainerLootModal") == null || Read.Type("ProximityLootModal") == null)
+                    throw new MissingMemberException("Native loot window or highlight type is unavailable.");
                 installed = true;
-                Status = "Close empty loot and hide opened empty container highlights are ready.";
+                Status = "Empty loot checks are ready; native loot and highlight methods are not detoured.";
+                Log.Event("loot", "INFO", Status);
             }
             catch (Exception ex)
             {
@@ -69,67 +68,60 @@ namespace SolastaCoop
             return slots is IEnumerable && !Read.Items(slots).Any(s => Read.Get(s, "EquipedItem") != null);
         }
 
-        private static void FilterHighlight(object __instance, out bool __state)
+        private static void RefreshHighlight(object swapper)
         {
-            __state = Object.Equals(Read.Get(__instance, "wantedVisible"), true);
-            if (!HideEmpty || !__state) return;
-            object world = Read.Get(__instance, "worldGadget");
+            bool wanted = Object.Equals(Read.Get(swapper, "wantedVisible"), true);
+            if (!HideEmpty || !wanted)
+            {
+                if (suppressedHighlights.Contains(swapper))
+                {
+                    Read.Call(swapper, "RefreshVisibility");
+                    suppressedHighlights.Remove(swapper);
+                }
+                return;
+            }
+            object world = Read.Get(swapper, "worldGadget");
             object container = Read.Get(Read.Get(world, "GameGadget"), "ItemContainer");
-            if (container != null && Object.Equals(Read.Get(container, "HasBeenOpenedOnce"), true) && Empty(container))
-                ObserverHud.SetMember(__instance, "wantedVisible", false);
-        }
-
-        private static void RestoreHighlightRequest(object __instance, bool __state)
-        {
-            ObserverHud.SetMember(__instance, "wantedVisible", __state);
-        }
-
-        private static void Opened(object __instance)
-        {
-            Windows.Remove(__instance);
-            Windows.Add(__instance, new WindowState { Opened = Time.unscaledTime });
+            bool hide = container != null &&
+                Object.Equals(Read.Get(container, "HasBeenOpenedOnce"), true) && Empty(container);
+            if (hide)
+            {
+                // Apply the native renderer update after gameplay updates, preserving its request for later restoration.
+                ObserverHud.SetMember(swapper, "wantedVisible", false);
+                try
+                {
+                    Read.Call(swapper, "RefreshVisibility");
+                    suppressedHighlights.Add(swapper);
+                }
+                finally { ObserverHud.SetMember(swapper, "wantedVisible", wanted); }
+            }
+            else if (suppressedHighlights.Contains(swapper))
+            {
+                Read.Call(swapper, "RefreshVisibility");
+                suppressedHighlights.Remove(swapper);
+            }
         }
 
         internal static void Tick()
         {
             if (!installed) return;
-            if (Time.unscaledTime >= nextHighlightPoll)
+            object current = Read.Get(Read.Type("Gui"), "GameLocation");
+            if (!Object.ReferenceEquals(location, current))
             {
-                nextHighlightPoll = Time.unscaledTime + 0.5f;
-                try
-                {
-                    foreach (UnityEngine.Object swapper in UnityEngine.Object.FindObjectsOfType(swapperType))
-                        if (Object.Equals(Read.Get(swapper, "wantedVisible"), true)) Read.Call(swapper, "RefreshVisibility");
-                }
-                catch (Exception ex) { Log.Error("loot", "Refresh empty container highlights", ex); }
+                location = current;
+                windows = new ConditionalWeakTable<object, WindowState>();
+                highlightSwappers = new UnityEngine.Object[0];
+                suppressedHighlights.Clear();
+                nextPoll = nextHighlightPoll = 0f;
             }
-            if (!AutoClose || Time.unscaledTime < nextPoll) return;
+            if (current == null || Time.unscaledTime < nextPoll) return;
             nextPoll = Time.unscaledTime + 0.1f;
             foreach (string name in new[] { "ContainerLootModal", "ProximityLootModal" })
             {
                 try
                 {
                     object modal = Read.Call(Read.Get(Read.Type("Gui"), "GuiService"), "GetScreen", Read.Type(name));
-                    WindowState state;
-                    if (modal == null || !Windows.TryGetValue(modal, out state) ||
-                        !Object.Equals(Read.Get(modal, "Visible"), true) || Object.Equals(Read.Get(modal, "Hiding"), true)) continue;
-                    if (Time.unscaledTime - state.Opened < 0.5f) continue;
-                    bool empty;
-                    if (name == "ContainerLootModal") empty = Empty(Read.Get(modal, "container"));
-                    else
-                    {
-                        // This is the native source inventory, not the visible slot widget count.
-                        object ground = Read.Get(modal, "groundSlots");
-                        empty = ground is IEnumerable && !Read.Items(ground).Any(s => Read.Get(s, "EquipedItem") != null);
-                    }
-                    bool pending = Read.Items(Read.Get(modal, "itemsToLootCache")).Any();
-                    if (!empty || pending) { state.EmptySince = -1f; continue; }
-                    if (state.EmptySince < 0f) state.EmptySince = Time.unscaledTime;
-                    if (Time.unscaledTime - state.EmptySince < 0.25f) continue;
-                    Windows.Remove(modal);
-                    Read.Call(modal, "OnCancelCb");
-                    Status = "Closed empty " + name + " through the native cancel handler.";
-                    Log.Event("loot", "INFO", Status);
+                    CheckWindow(modal, name == "ProximityLootModal", Time.unscaledTime);
                 }
                 catch (Exception ex)
                 {
@@ -137,6 +129,53 @@ namespace SolastaCoop
                     Log.Error("loot", "Close empty loot", ex);
                 }
             }
+        }
+
+        private static void CheckWindow(object modal, bool groundLoot, float now)
+        {
+            if (modal == null) return;
+            if (!AutoClose || !Object.Equals(Read.Get(modal, "Visible"), true) ||
+                Object.Equals(Read.Get(modal, "Hiding"), true))
+            {
+                windows.Remove(modal);
+                return;
+            }
+            object source = Read.Get(modal, groundLoot ? "groundSlots" : "container");
+            WindowState state;
+            if (!windows.TryGetValue(modal, out state) || !Object.ReferenceEquals(state.Source, source))
+            {
+                windows.Remove(modal);
+                state = new WindowState { Source = source, Opened = now };
+                windows.Add(modal, state);
+            }
+            if (state.Closing || now - state.Opened < 0.5f) return;
+            bool empty = groundLoot ? source is IEnumerable &&
+                !Read.Items(source).Any(s => Read.Get(s, "EquipedItem") != null) : Empty(source);
+            bool pending = Read.Items(Read.Get(modal, "itemsToLootCache")).Any();
+            if (!empty || pending) { state.EmptySince = -1f; return; }
+            if (state.EmptySince < 0f) state.EmptySince = now;
+            if (now - state.EmptySince < 0.25f) return;
+            Read.Call(modal, "OnCancelCb");
+            state.Closing = true;
+            Status = "Closed empty " + modal.GetType().Name + " through the native cancel handler.";
+            Log.Event("loot", "INFO", Status);
+        }
+
+        internal static void LateTick()
+        {
+            if (!installed || location == null) return;
+            try
+            {
+                if (Time.unscaledTime >= nextHighlightPoll)
+                {
+                    nextHighlightPoll = Time.unscaledTime + 0.5f;
+                    highlightSwappers = UnityEngine.Object.FindObjectsOfType(swapperType);
+                    suppressedHighlights.RemoveWhere(s => s is UnityEngine.Object && (UnityEngine.Object)s == null);
+                }
+                foreach (UnityEngine.Object swapper in highlightSwappers)
+                    if (swapper != null) RefreshHighlight(swapper);
+            }
+            catch (Exception ex) { Log.Error("loot", "Refresh empty container highlights", ex); }
         }
     }
 }
