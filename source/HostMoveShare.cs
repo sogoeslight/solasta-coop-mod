@@ -34,6 +34,8 @@ namespace SolastaCoop
         private int receivedFrom;
         internal bool Enabled { get; private set; } = true;
         internal string Status { get; private set; } = "Waiting for a Photon connection.";
+        internal string DiagnosticSummary { get { return Status + "; enabled=" + Enabled + "; hook=" + hookInstalled +
+            "; disabled=" + disabled + "; sent=" + sequence + "; received=" + receivedSequence + "; sender=" + receivedFrom; } }
 
         internal void SetEnabled(bool enabled)
         {
@@ -129,7 +131,11 @@ namespace SolastaCoop
             try
             {
                 HostMoveShare current = instance;
-                if (current != null) current.MoveIssued(__0, __1);
+                if (current != null)
+                {
+                    current.Follower.OnManualMove(__0);
+                    current.MoveIssued(__0, __1);
+                }
             }
             catch (Exception ex) { Log.Error("core", "Host movement event", ex); }
         }

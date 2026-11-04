@@ -2,13 +2,13 @@
 
 Shared interactions, automatic confirmations, teammate visibility and configurable movement speed. Open [b]F8[/b] to configure the mod.
 
-[b]Version 0.1.23[/b], Fixes a reproduced native crash in empty-loot initialization after shared-loot hooks are installed, matching the save-load crash point in the supplied 0.1.22 log. Automatic closing and empty-container highlight filtering remain available. Default exploration speed x1.75, combat speed x1.5.
+[b]Version 0.1.24[/b], Travel preview starts hidden (F6 to enable). Follow host is the initial dialogue mode, including the first upgrade from the previous default; later mode choices are remembered. Auto-follow can update its own walking destination, drops stale routes after pauses and retries transient errors. Default exploration speed x1.75, combat speed x1.5.
 
 [b][size=4]CO-OP & EXPLORATION[/size][/b]
 
-[b]Shared Travel[/b], View the host's travel screen and player cursors.
+[b]Shared Travel[/b], View the host's travel screen and player cursors. The preview is off by default; press F6 to enable it.
 [b]Shared Loot[/b], Access chests, corpses and ground loot together.
-[b]Auto-Follow[/b], Follow teammates and their movement destinations.
+[b]Auto-Follow[/b], Follow teammates and their movement destinations, including new host targets during an automatic walk. Manual movement and interactions remain protected; following resumes after pauses.
 [b]Auto-Confirmations[/b], Accept fast-travel votes and continue ready loading screens.
 [b]Item Transfers[/b], Increase the distance for transferring items.
 
@@ -18,7 +18,7 @@ Shared interactions, automatic confirmations, teammate visibility and configurab
 [b]Exploration Speed[/b], A separate movement slider for exploring locations. Both sliders cover [b]x1 to x3[/b], with 0.25 steps and x1/x2/x3 presets. Default combat speed x1.5, exploration speed x1.75. Cinematic movement keeps native timing.
 [b]Empty Loot[/b], Automatically close chest, corpse and ground-loot windows after all items have been taken and pending transfers have completed.
 [b]Empty Container Highlights[/b], Hide highlights on already opened empty containers. Unopened containers remain visible and interaction remains available.
-[b]Dialogue Votes[/b], Choose Vanilla, Follow host, or Random tie. Follow host needs no guest click. Random tie counts all players equally and chooses once on the host when tied, giving two different votes a [b]50/50 chance[/b].
+[b]Dialogue Votes[/b], Choose Vanilla, Follow host (default), or Random tie. Follow host needs no guest click. Random tie counts all players equally and chooses once on the host when tied, giving two different votes a [b]50/50 chance[/b].
 [b]Dialogue Autosave[/b], Save before dialogue interactions and scripted trigger acknowledgement when native saving is allowed. The game cannot separately restore a choice or roll inside an active dialogue; scenes that forbid saving are skipped.
 
 The host controls speed and dialogue policy for the room. Guests use the same settings and vote result. Preferences are remembered between launches. Empty-loot options are configurable per player.

@@ -28,6 +28,8 @@ namespace SolastaCoop
         internal string HudStatus = "Observer HUD disabled.";
         internal string TravelStatus = "Travel sharing not sampled yet.";
         internal string LootStatus = "Loot mirror not sampled yet.";
+        internal string FollowStatus = "Auto-follow not sampled yet.";
+        internal string HostMoveStatus = "Host movement channel not sampled yet.";
 
         internal RuntimeDiagnostics()
         {
@@ -336,6 +338,8 @@ namespace SolastaCoop
                 text.AppendLine("\nSESSION ERRORS (memory, retained after log deletion)\n" + Log.Writer.ReadFailures());
                 text.AppendLine("\nCONNECTION RETRIES\n" + ConnectionRetry.Enabled + "; " + ConnectionRetry.Status);
                 text.AppendLine("\nTRAVEL VIEW\n" + TravelStatus);
+                text.AppendLine("\nAUTO-FOLLOW\n" + FollowStatus);
+                text.AppendLine("\nHOST MOVEMENT\n" + HostMoveStatus);
                 text.AppendLine("\nLOOT VIEW\n" + LootStatus);
                 text.AppendLine("\nCURRENT RANGE\n" + LatestRange);
                 text.AppendLine("\nOBSERVER HUD\n" + HudStatus);

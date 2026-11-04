@@ -28,7 +28,7 @@ namespace SolastaCoop
         private MethodInfo raise;
         private Type optionsType, sendType;
         private DateTime nextHello, nextPointer, nextFrame, frameAt;
-        private bool host, online, localTravel, wasSharing, previewShown = true;
+        private bool host, online, localTravel, wasSharing, previewShown;
         private int master, sequence, receivedSequence = -1, pointerSequence;
         private Texture2D image;
         private GameObject inputShield;
@@ -36,10 +36,10 @@ namespace SolastaCoop
         private Rect preview = new Rect(16, 16, 1000, 620), imageRect;
         internal static bool Capturing { get; private set; }
         internal bool Enabled = true;
-        internal string Status = "Travel preview enabled. All players need the updated mod.";
+        internal string Status = "Travel preview hidden. Press F6 to show it.";
         internal bool ShouldCapture { get; private set; }
         internal string DiagnosticSummary { get { return Status + "; enabled=" + Enabled + "; host=" + host +
-            "; map=" + localTravel + "; peers=" + peers.Count + "; lastFrame=" + receivedSequence; } }
+            "; preview=" + previewShown + "; map=" + localTravel + "; peers=" + peers.Count + "; lastFrame=" + receivedSequence; } }
 
         private static object Screen(string name)
         {

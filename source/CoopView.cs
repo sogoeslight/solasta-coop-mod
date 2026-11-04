@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.23.0")]
+[assembly: AssemblyVersion("0.1.24.0")]
 
 namespace Doorstop
 {
@@ -282,6 +282,8 @@ namespace SolastaCoop
             if (Input.GetKeyDown(KeyCode.F6)) travelShare.TogglePreview();
             diagnostics.TravelStatus = travelShare.DiagnosticSummary;
             diagnostics.LootStatus = lootShare.Diagnostics;
+            diagnostics.FollowStatus = autoFollow.DiagnosticSummary;
+            diagnostics.HostMoveStatus = hostMoveShare == null ? "Not initialized." : hostMoveShare.DiagnosticSummary;
             if (Input.GetKeyDown(KeyCode.F8)) SetVisible(!visible);
             if (Input.GetKeyDown(KeyCode.F9)) diagnostics.SetVerbose(!Log.Verbose);
             if (Input.GetKeyDown(KeyCode.F10)) diagnostics.SaveReport();

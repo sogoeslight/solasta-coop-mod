@@ -137,6 +137,8 @@ public static class VerifyStartup
             Check((bool)plugin.GetType("SolastaCoop." + name, true).GetField("installed", Flags).GetValue(null),
                 "Real Harmony initializes " + name + " after location load");
         Type speed = plugin.GetType("SolastaCoop.CombatSpeed", true);
+        Check(plugin.GetType("SolastaCoop.DialogueChoices", true).GetProperty("Mode", Flags).GetValue(null, null).ToString() == "FollowHost",
+            "Fresh session preferences default to Follow host dialogue voting");
         Check(Math.Abs((float)speed.GetProperty("Factor", Flags).GetValue(null, null) - 1.5f) < 0.001f &&
             Math.Abs((float)speed.GetProperty("ExplorationFactor", Flags).GetValue(null, null) - 1.75f) < 0.001f,
             "Default preferences load combat x1.5 and exploration x1.75");

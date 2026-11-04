@@ -62,6 +62,11 @@ public static class VerifyTravelShare
         Action tick = () => type.GetMethod("Tick", F).Invoke(share, null);
         Func<string, object> get = n => type.GetField(n, F).GetValue(share);
         tick();
+        Check(!(bool)get("previewShown") && Photon.Pun.PhotonNetwork.LastPacket[2].Equals(false),
+            "Travel preview starts hidden and does not request frames before F6");
+        type.GetMethod("TogglePreview", F).Invoke(share, null); tick();
+        Check((bool)get("previewShown") && Photon.Pun.PhotonNetwork.LastPacket[2].Equals(true),
+            "F6 explicitly enables the preview and advertises interest to the host");
         var first = Photon.Pun.PhotonNetwork.NetworkingClient;
         Check(first.Subscribers == 1 && Photon.Pun.PhotonNetwork.LastCode == 190 && Photon.Pun.PhotonNetwork.LastPacket[0].Equals(TravelWire.Magic), "Actual display adapter subscribes once and sends the private-channel handshake");
         first.Receive(3, new object[] { TravelWire.Magic, TravelWire.Hello, true });

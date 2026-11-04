@@ -12,11 +12,12 @@ namespace SolastaCoop
     {
         private const string PolicyKey = "SolastaCoopMod.policy/1";
         private const string ResultKey = "SolastaCoopMod.dialogue/2";
+        private const string DialoguePreferenceKey = "SolastaCoopMod.DialogueMode.v2";
         private static object lastRoom;
         private static string published;
         private static float nextPoll;
         private static float localCombat = CombatSpeed.DefaultCombatFactor, localExploration = CombatSpeed.DefaultExplorationFactor;
-        private static int localDialogue = 2;
+        private static int localDialogue = (int)DialogueMode.FollowHost;
         internal static string Status { get; private set; } = "Local settings.";
 
         internal static object Network { get { return Read.Service("INetworkingService"); } }
@@ -28,7 +29,8 @@ namespace SolastaCoop
         {
             localCombat = PlayerPrefs.GetFloat("SolastaCoopMod.CombatSpeed", CombatSpeed.DefaultCombatFactor);
             localExploration = PlayerPrefs.GetFloat("SolastaCoopMod.ExplorationSpeed", CombatSpeed.DefaultExplorationFactor);
-            localDialogue = Math.Max(0, Math.Min(2, PlayerPrefs.GetInt("SolastaCoopMod.DialogueMode", 2)));
+            // A new preference generation applies the requested default once; subsequent explicit choices persist.
+            localDialogue = Math.Max(0, Math.Min(2, PlayerPrefs.GetInt(DialoguePreferenceKey, (int)DialogueMode.FollowHost)));
             Apply(localCombat, localExploration, localDialogue);
         }
 
@@ -40,7 +42,7 @@ namespace SolastaCoop
             localDialogue = (int)DialogueChoices.Mode;
             PlayerPrefs.SetFloat("SolastaCoopMod.CombatSpeed", localCombat);
             PlayerPrefs.SetFloat("SolastaCoopMod.ExplorationSpeed", localExploration);
-            PlayerPrefs.SetInt("SolastaCoopMod.DialogueMode", localDialogue);
+            PlayerPrefs.SetInt(DialoguePreferenceKey, localDialogue);
             PlayerPrefs.Save();
             published = null;
             nextPoll = 0f;

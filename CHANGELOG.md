@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.24
+
+- Starts the F6 travel preview hidden. Guests request screen frames only after enabling the preview.
+- Makes Follow host the initial dialogue mode, including the first upgrade from the previous preference generation. Later mode changes are remembered and the host's policy is synchronized to guests.
+- Fixes follow retargeting being blocked by IsCharacterActing during the follower's own exploration walk. New targets use the native replacement command with a cooldown; manual movement and other actions remain protected.
+- Drops stale host waypoints when the host stops or cancels movement, exploration pauses, combat starts or the location changes. Tracks elevation changes and retries transient command failures without requiring the toggle to be restarted.
+- Adds auto-follow and host-movement state to diagnostic reports and periodic verbose logs, including idle and blocked periods.
+- Adds timed host/guest regression fixtures for repeated waypoints, manual movement, interactions, pauses, stale routes, delayed network echoes, transient failures, ownership and packet ordering.
+
 ## 0.1.23
 
 - Fixes a reproduced native Mono crash during empty-loot initialization after existing shared-loot hooks have been installed. Removes the additional loot-window and highlight Harmony detours; the supplied 0.1.22 save-load log stopped inside this stage.

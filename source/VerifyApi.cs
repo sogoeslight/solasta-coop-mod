@@ -90,6 +90,13 @@ public static class VerifyApi
         Check(type("IGameLocationSelectionService").GetProperty("HoveredCharacters", Flags) != null,
             "Selection service.HoveredCharacters");
         Check(type("GameLocationCharacter").GetProperty("LocationPosition", Flags) != null, "Character.LocationPosition");
+        foreach (string name in new[] { "DestinationPosition", "MovingToDestination", "MoveInProgress" })
+            Check(type("GameLocationCharacter").GetProperty(name, Flags) != null, "Follow character state." + name);
+        Check(type("GameLocationActionManager").GetMethods(Flags).Any(m => m.Name == "IsCharacterExecutingAction" &&
+            m.ReturnType == typeof(bool) && m.GetParameters().Length == 2 &&
+            m.GetParameters()[0].ParameterType == type("GameLocationCharacter") &&
+            m.GetParameters()[1].ParameterType == type("ActionDefinitions+Id")) &&
+            Enum.IsDefined(type("ActionDefinitions+Id"), "ExplorationMove"), "Native exploration action check for safe follow retargeting");
         Check(type("RulesetEffectSpell").GetProperty("SpellDefinition", Flags) != null, "Spell effect.SpellDefinition");
         Type evaluation = type("BattleDefinitions+AttackEvaluationParams");
         Check(evaluation.GetMethods(Flags).Any(m => m.Name == "FillForMagicDistance" && m.GetParameters().Length == 8),

@@ -16,6 +16,9 @@ namespace SolastaCoop
         private const float ResumeDistance = 1.9f;
         private const float RecentMovementSeconds = 4.0f;
         private const float MovementEpsilon = 0.65f;
+        private const float WaypointStartGrace = 2f;
+
+        private sealed class IssuedMove { internal int X, Y, Z; }
 
         private sealed class Track
         {
@@ -26,6 +29,9 @@ namespace SolastaCoop
 
         private readonly Dictionary<ulong, Track> observations = new Dictionary<ulong, Track>();
         private readonly Dictionary<ulong, float> lastCommand = new Dictionary<ulong, float>();
+        private readonly Dictionary<ulong, IssuedMove> autoMoves = new Dictionary<ulong, IssuedMove>();
+        private object location;
+        private bool wasExploring;
         private ulong leaderGuid;
         private bool manualLeader;
         private float nextTick;
@@ -38,8 +44,15 @@ namespace SolastaCoop
         private bool hostWaypointActive;
         private int issuedCommands;
         private int skippedBusy;
+        private int retargeted, recoveries;
         private string lastError;
+        private float nextErrorLog;
+        private string lastSample = "No exploration sample yet.";
         internal bool Enabled { get; private set; }
+        internal string DiagnosticSummary { get { return Status + "\nenabled=" + Enabled + "; leader=" + leaderGuid +
+            "; manualLeader=" + manualLeader + "; hostWaypoint=" + hostWaypointActive + "; waypointVersion=" + hostMoveVersion +
+            "; issued=" + issuedCommands + "; retargeted=" + retargeted + "; busySkipped=" + skippedBusy +
+            "; recoveries=" + recoveries + "; lastError=" + lastError + "\n" + lastSample; } }
         internal static bool IsIssuingMove { get; private set; }
         // Only host-issued movement commands create a new destination. A stale
         // destination is discarded when the exploration mode changes.
@@ -47,6 +60,14 @@ namespace SolastaCoop
         {
             if (!Enabled || leader == 0UL) return;
             if (manualLeader && leaderGuid != leader) return;
+            object currentLocation = Read.Get(Read.Type("Gui"), "GameLocation");
+            if (currentLocation == null || Read.Get(Read.Type("Gui"), "Battle") != null) return;
+            if (!object.ReferenceEquals(location, currentLocation))
+            {
+                ResetMovement();
+                location = currentLocation;
+                wasExploring = false;
+            }
             hostMoveLeader = leader;
             hostMoveX = x; hostMoveY = y; hostMoveZ = z;
             lastHostMoveAt = Time.unscaledTime;
@@ -56,6 +77,30 @@ namespace SolastaCoop
             Status = "Host selected destination (" + x + ", " + y + ", " + z + "). Following host command.";
         }
         internal string Status { get; private set; } = "Disabled.";
+
+        private void ResetMovement()
+        {
+            lastCommand.Clear();
+            autoMoves.Clear();
+            lastHostMoveCommand.Clear();
+            hostWaypointActive = false;
+            observations.Clear();
+        }
+
+        private void Pause(string reason)
+        {
+            if (wasExploring || hostWaypointActive) ResetMovement();
+            wasExploring = false;
+            Status = reason;
+        }
+
+        internal void OnManualMove(object character)
+        {
+            if (!Enabled || IsIssuingMove || LocallyControlled(character) != true) return;
+            ulong id = Id(character);
+            autoMoves.Remove(id);
+            lastCommand[id] = Time.unscaledTime;
+        }
 
         private static ulong Id(object character)
         {
@@ -117,24 +162,23 @@ namespace SolastaCoop
             if (!enabled)
             {
                 Enabled = false;
-                lastCommand.Clear();
-                lastHostMoveCommand.Clear();
-                hostWaypointActive = false;
-                observations.Clear();
+                ResetMovement();
+                wasExploring = false;
                 Status = "Auto-follow disabled.";
+                Log.Event("core", "INFO", Status);
                 return;
             }
             if (selected != null) SelectTarget(selected);
             Enabled = true;
             nextTick = 0;
-            lastCommand.Clear();
-            lastHostMoveCommand.Clear();
-            hostWaypointActive = false;
-            observations.Clear();
+            ResetMovement();
+            wasExploring = false;
             issuedCommands = 0;
             skippedBusy = 0;
+            retargeted = recoveries = 0;
             lastError = null;
             Status = "Looking for a moving teammate hero.";
+            Log.Event("core", "INFO", "Auto-follow enabled.");
         }
 
         internal void SelectAutomaticLeader()
@@ -143,6 +187,37 @@ namespace SolastaCoop
             leaderGuid = 0UL;
             hostWaypointActive = false;
             if (Enabled) Status = "Leader is selected automatically based on movement.";
+        }
+
+        private bool UseHostWaypoint(List<object> remotes, out object leader)
+        {
+            leader = hostWaypointActive ? remotes.FirstOrDefault(p => Id(p) == hostMoveLeader) : null;
+            if (!hostWaypointActive) return false;
+            float age = Time.unscaledTime - lastHostMoveAt;
+            Track observation;
+            bool moving = leader != null && (object.Equals(Read.Get(leader, "MovingToDestination"), true) ||
+                object.Equals(Read.Get(leader, "MoveInProgress"), true) ||
+                (observations.TryGetValue(Id(leader), out observation) && observation.LastMoveTime > 0f &&
+                    Time.unscaledTime - observation.LastMoveTime < WaypointStartGrace));
+            if (leader == null || age >= 75f || (age > WaypointStartGrace && !moving))
+            {
+                hostWaypointActive = false;
+                return false;
+            }
+            return true;
+        }
+
+        private bool CanRetarget(object actor, object actionService)
+        {
+            IssuedMove previous;
+            if (!autoMoves.TryGetValue(Id(actor), out previous)) return false;
+            Type actionId = Read.Type("ActionDefinitions+Id");
+            if (actionId == null || !Enum.IsDefined(actionId, "ExplorationMove") ||
+                !object.Equals(Read.Call(actionService, "IsCharacterExecutingAction", actor,
+                    Enum.Parse(actionId, "ExplorationMove")), true)) return false;
+            object destination = Read.Get(actor, "DestinationPosition");
+            return destination != null && Coordinate(destination, "x") == previous.X &&
+                Coordinate(destination, "y") == previous.Y && Coordinate(destination, "z") == previous.Z;
         }
 
         private void ObserveRemoteCharacters(IEnumerable<object> remotes)
@@ -209,18 +284,26 @@ namespace SolastaCoop
             nextTick = Time.unscaledTime + TickInterval;
             try
             {
-                if (Read.Get(Read.Type("Gui"), "GameLocation") == null ||
+                object currentLocation = Read.Get(Read.Type("Gui"), "GameLocation");
+                if (!object.ReferenceEquals(location, currentLocation))
+                {
+                    location = currentLocation;
+                    ResetMovement();
+                    wasExploring = false;
+                }
+                if (currentLocation == null ||
                     Read.Get(Read.Type("Gui"), "Battle") != null)
                 {
-                    Status = "Paused: not exploring or combat started.";
+                    Pause("Paused: not exploring or combat started.");
                     return;
                 }
                 object cursor = Read.Get(Read.Service("ICursorService"), "CurrentCursor");
                 if (cursor == null || !cursor.GetType().Name.StartsWith("CursorLocationExploration", StringComparison.Ordinal))
                 {
-                    Status = "Paused: dialogue, menu, cutscene, or loading.";
+                    Pause("Paused: dialogue, menu, cutscene, or loading.");
                     return;
                 }
+                wasExploring = true;
                 var party = Read.Items(Read.Get(Read.Service("IGameLocationCharacterService"), "PartyCharacters")).ToList();
                 var classified = party.Select(p => new { Character = p, Local = LocallyControlled(p) }).ToList();
                 if (classified.Count < 2 || classified.Any(c => !c.Local.HasValue))
@@ -238,11 +321,9 @@ namespace SolastaCoop
                 ObserveRemoteCharacters(remotes);
                 // When the host provides destinations we do not continuously
                 // chase his current position: we act on the command itself.
-                bool followHostCommand = hostWaypointActive &&
-                    Time.unscaledTime - lastHostMoveAt < 75f;
-                object leader = followHostCommand
-                    ? remotes.FirstOrDefault(p => Id(p) == hostMoveLeader)
-                    : ChooseLeader(remotes, locals);
+                object leader;
+                bool followHostCommand = UseHostWaypoint(remotes, out leader);
+                if (!followHostCommand) leader = ChooseLeader(remotes, locals);
                 if (leader == null) return;
                 leaderGuid = Id(leader);
                 object leaderPosition = Read.Get(leader, "LocationPosition");
@@ -262,6 +343,7 @@ namespace SolastaCoop
                 if (move == null) throw new MissingMethodException("ICommandService.MoveCharacter(8)");
 
                 int sent = 0, busy = 0, near = 0, index = 0;
+                var samples = new List<string>();
                 foreach (object actor in locals)
                 {
                     ulong id = Id(actor);
@@ -269,9 +351,10 @@ namespace SolastaCoop
                     if (id == 0 || position == null) continue;
                     int fx = Coordinate(position, "x"), fy = Coordinate(position, "y"), fz = Coordinate(position, "z");
                     double distance = Distance(fx, fz, lx, lz);
+                    samples.Add(id + "@" + fx + "," + fy + "," + fz);
                     // Do not freeze when the leader changes elevation on stairs or ramps.
                     // The game's pathfinding decides whether the target is reachable.
-                    if (distance < ResumeDistance)
+                    if (distance < ResumeDistance && fy == ly)
                     {
                         near++;
                         continue;
@@ -280,31 +363,39 @@ namespace SolastaCoop
                     int handledVersion;
                     bool firstCommandForWaypoint = followHostCommand &&
                         (!lastHostMoveCommand.TryGetValue(id, out handledVersion) || handledVersion != hostMoveVersion);
-                    // React immediately to each NEW host destination when free,
-                    // but don't repeatedly restart the same movement every frame.
-                    if (!firstCommandForWaypoint && lastCommand.TryGetValue(id, out last) &&
+                    // Bound commands while the previous request may still be awaiting its network echo.
+                    if (lastCommand.TryGetValue(id, out last) &&
                         Time.unscaledTime - last < CommandCooldown) continue;
                     if (followHostCommand && !firstCommandForWaypoint &&
                         lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < 7f) continue;
-                    if (object.Equals(Read.Call(actionService, "IsCharacterActing", actor), true))
+                    bool acting = object.Equals(Read.Call(actionService, "IsCharacterActing", actor), true);
+                    bool retarget = acting && CanRetarget(actor, actionService);
+                    if (acting && !retarget)
                     {
                         busy++;
                         skippedBusy++;
                         continue;
                     }
+                    // The native MoveCharacter command replaces a walk when enqueue=false. Waiting for
+                    // IsCharacterActing to become false prevents following a new destination during long walks.
+                    if (retarget && lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < CommandCooldown) continue;
                     // Aim only one cell behind the leader. The previous 2-3 cell offset
                     // combined with a 3.25-cell stop threshold made units halt too early.
                     double dx = fx - lx, dz = fz - lz;
+                    double horizontal = Math.Max(1d, distance);
                     double offset = DesiredDistance;
-                    int tx = lx + (int)Math.Round(dx / distance * offset);
-                    int tz = lz + (int)Math.Round(dz / distance * offset);
+                    int tx = lx + (int)Math.Round(dx / horizontal * offset);
+                    int tz = lz + (int)Math.Round(dz / horizontal * offset);
                     // A second follower takes a slightly different adjacent cell.
                     if (index++ % 2 == 1)
                     {
-                        tx += (int)Math.Round(-dz / distance);
-                        tz += (int)Math.Round(dx / distance);
+                        tx += (int)Math.Round(-dz / horizontal);
+                        tz += (int)Math.Round(dx / horizontal);
                     }
-                    if (tx == fx && tz == fz) { near++; continue; }
+                    if (tx == fx && tz == fz && ly == fy) { near++; continue; }
+                    IssuedMove previous;
+                    if (retarget && autoMoves.TryGetValue(id, out previous) &&
+                        previous.X == tx && previous.Y == ly && previous.Z == tz) { busy++; continue; }
                     object orientation = Read.Get(actor, "Orientation");
                     object stance = Read.Call(actor, "GetMoveStance");
                     if (orientation == null || stance == null) continue;
@@ -316,28 +407,38 @@ namespace SolastaCoop
                     }
                     finally { IsIssuingMove = false; }
                     lastCommand[id] = Time.unscaledTime;
+                    autoMoves[id] = new IssuedMove { X = tx, Y = ly, Z = tz };
                     if (followHostCommand) lastHostMoveCommand[id] = hostMoveVersion;
                     issuedCommands++;
+                    if (retarget) retargeted++;
                     sent++;
                 }
+                lastSample = "leader@" + lx + "," + ly + "," + lz + "; locals=" + string.Join(";", samples);
                 Status = (followHostCommand ? "Moving toward host waypoint behind " : "Following ") + Read.Name(leader) + (manualLeader ? " (manual)" : " (auto)") +
                     ". Commands: " + issuedCommands + ", issued now: " + sent +
                     ", already near: " + near + ", busy: " + busy + ".";
-                if (Log.Verbose && sent > 0 && Time.unscaledTime > nextDiagnostic)
-                {
-                    nextDiagnostic = Time.unscaledTime + 5f;
-                    Log.Event("core", "DEBUG", "Auto-follow; leader=" + leaderGuid +
-                        "; sent=" + sent + "; near=" + near + "; busy=" + busy +
-                        "; busySkippedTotal=" + skippedBusy);
-                }
             }
             catch (Exception ex)
             {
-                Enabled = false;
-                lastCommand.Clear();
-                lastError = ex.GetBaseException().Message;
-                Status = "Auto-follow stopped: " + lastError;
-                Log.Error("core", "Party auto-follow", ex);
+                ResetMovement();
+                nextTick = Time.unscaledTime + CommandCooldown;
+                string error = ex.GetBaseException().Message;
+                Status = "Auto-follow paused; retrying: " + error;
+                recoveries++;
+                if (error != lastError || Time.unscaledTime >= nextErrorLog)
+                {
+                    nextErrorLog = Time.unscaledTime + 15f;
+                    Log.Error("core", "Party auto-follow (will retry)", ex);
+                }
+                lastError = error;
+            }
+            finally
+            {
+                if (Log.Verbose && Time.unscaledTime >= nextDiagnostic)
+                {
+                    nextDiagnostic = Time.unscaledTime + 10f;
+                    Log.Event("core", "DEBUG", "Auto-follow; " + DiagnosticSummary);
+                }
             }
         }
     }

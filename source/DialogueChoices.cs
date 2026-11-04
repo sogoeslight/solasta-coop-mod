@@ -20,7 +20,7 @@ namespace SolastaCoop
         private static readonly ConditionalWeakTable<object, Context> Contexts = new ConditionalWeakTable<object, Context>();
         private static readonly Random Random = new Random();
         private static bool installed;
-        internal static DialogueMode Mode { get; private set; } = DialogueMode.RandomTie;
+        internal static DialogueMode Mode { get; private set; } = DialogueMode.FollowHost;
         internal static string Status { get; private set; } = "Dialogue voting is not initialized.";
 
         internal static void SetMode(DialogueMode mode) { if ((int)mode >= 0 && (int)mode <= 2) Mode = mode; }

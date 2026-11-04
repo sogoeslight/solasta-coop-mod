@@ -9,6 +9,9 @@ public static class PrepareUnityFixture
         using (var assembly = AssemblyDefinition.ReadAssembly(args[0]))
         {
             var time = assembly.MainModule.GetType("UnityEngine.Time");
+            var elapsed = new FieldDefinition("CoopTestElapsed", FieldAttributes.Public | FieldAttributes.Static,
+                assembly.MainModule.TypeSystem.Single);
+            time.Fields.Add(elapsed);
             foreach (string name in new[] { "get_deltaTime", "get_unscaledTime" })
                 foreach (var method in time.Methods)
                     if (method.Name == name)
@@ -17,6 +20,11 @@ public static class PrepareUnityFixture
                         method.Body = new MethodBody(method);
                         var il = method.Body.GetILProcessor();
                         il.Append(il.Create(OpCodes.Ldc_R4, name == "get_deltaTime" ? 0.02f : 10f));
+                        if (name == "get_unscaledTime")
+                        {
+                            il.Append(il.Create(OpCodes.Ldsfld, elapsed));
+                            il.Append(il.Create(OpCodes.Add));
+                        }
                         il.Append(il.Create(OpCodes.Ret));
                     }
             var preferences = assembly.MainModule.GetType("UnityEngine.PlayerPrefs");
