@@ -2,12 +2,13 @@
 
 Quality-of-life improvements for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op. Configure the mod with **F8**.
 
-**Version 0.1.24** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
+**Version 0.1.25** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
 
 ## Features
 
 | Feature | What it does | Control |
 | --- | --- | --- |
+| Lobby party order | Swaps hero positions for the room and carries the order into the game, preserving hero ownership | Host controls above the lobby character cards |
 | Combat speed | Accelerates actual movement, movement waits, animations and VFX | F8 → Speed, ×1–×3, default ×1.5 |
 | Exploration speed | Accelerates character movement around locations; cinematic movement keeps native timing | F8 → Speed, ×1–×3, default ×1.75 |
 | Dialogue votes | Vanilla, follow the host without guest clicks, or equal votes with a random tie-break (50/50 for two different votes) | F8 → Dialogue, default Follow host |
@@ -31,6 +32,8 @@ Speed sliders have a 0.25 step and ×1, ×2 and ×3 presets. The host controls s
 Version 0.1.24 starts the dialogue preference with **Follow host** once, including upgrades from the previous default. Choices made afterward are remembered. Auto-follow can update its own exploration walk when the host changes destination, discards stale waypoints after pauses, and retries transient errors. It preserves local ownership and manual actions.
 
 Dialogue checkpoints precede a conversation. The game does not restore an individual choice or roll inside an active dialogue. Scripted scenes that forbid saving are skipped. Unopened containers stay highlighted; looting and other interactions remain available when empty highlights are hidden.
+
+In a multiplayer lobby, select all heroes first. The host clicks **Move slot N** above one character card, then **Swap with M** above another. Clicking the selected slot again cancels. Guests see the same arrangement, and each hero stays with the same player. The order carries into a new or loaded game through native party sorting; subsequent manual in-game reordering remains available.
 
 ## Installation
 

@@ -90,6 +90,13 @@ public static class VerifyApi
         Check(type("IGameLocationSelectionService").GetProperty("HoveredCharacters", Flags) != null,
             "Selection service.HoveredCharacters");
         Check(type("GameLocationCharacter").GetProperty("LocationPosition", Flags) != null, "Character.LocationPosition");
+        Check(type("NewAdventurePanel").GetField("characterSessionPlatesTable", Flags) != null &&
+            type("NewAdventurePanel").GetProperty("MultiplayerMode", Flags) != null &&
+            type("CharacterPlateSession").GetProperty("GuiCharacter", Flags) != null &&
+            type("GuiCharacter").GetProperty("Name", Flags) != null, "Native lobby character table and distinct hero names");
+        Check(type("GameLocationCharacterManager").GetMethods(Flags).Any(m => m.Name == "SwapPartyMembers" &&
+            m.ReturnType == typeof(void) && m.GetParameters().Length == 2 && m.GetParameters().All(p => p.ParameterType == typeof(int))),
+            "Native party swap API for lobby order carryover");
         foreach (string name in new[] { "DestinationPosition", "MovingToDestination", "MoveInProgress" })
             Check(type("GameLocationCharacter").GetProperty(name, Flags) != null, "Follow character state." + name);
         Check(type("GameLocationActionManager").GetMethods(Flags).Any(m => m.Name == "IsCharacterExecutingAction" &&

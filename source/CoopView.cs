@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("0.1.24.0")]
+[assembly: AssemblyVersion("0.1.25.0")]
 
 namespace Doorstop
 {
@@ -169,6 +169,7 @@ namespace SolastaCoop
         private readonly TravelShare travelShare = new TravelShare();
         private readonly LootShare lootShare = new LootShare();
         private readonly PartyAutoFollow autoFollow = new PartyAutoFollow();
+        private readonly LobbyPartyOrder lobbyPartyOrder = new LobbyPartyOrder();
         private HostMoveShare hostMoveShare;
         private readonly AutoFastTravelVote autoFastTravelVote = new AutoFastTravelVote();
         private readonly AutoLoadingProceed autoLoadingProceed = new AutoLoadingProceed();
@@ -203,6 +204,7 @@ namespace SolastaCoop
             travelShare.Dispose();
             lootShare.Dispose();
             autoFollow.SetEnabled(false);
+            lobbyPartyOrder.Dispose();
             if (hostMoveShare != null) hostMoveShare.Dispose();
             autoFastTravelVote.Dispose();
             autoLoadingProceed.Dispose();
@@ -230,6 +232,7 @@ namespace SolastaCoop
         }
         private void LateUpdate()
         {
+            lobbyPartyOrder.LateTick();
             LootConvenience.LateTick();
             if (gameCharacterMappingError)
             {
@@ -264,6 +267,7 @@ namespace SolastaCoop
         }
         private void Update()
         {
+            lobbyPartyOrder.Tick();
             CameraZoom.Tick();
             GameplayFeatures.InitializeIfReady();
             if (GameplayFeatures.Initialized)
@@ -284,6 +288,7 @@ namespace SolastaCoop
             diagnostics.LootStatus = lootShare.Diagnostics;
             diagnostics.FollowStatus = autoFollow.DiagnosticSummary;
             diagnostics.HostMoveStatus = hostMoveShare == null ? "Not initialized." : hostMoveShare.DiagnosticSummary;
+            diagnostics.LobbyOrderStatus = lobbyPartyOrder.Status;
             if (Input.GetKeyDown(KeyCode.F8)) SetVisible(!visible);
             if (Input.GetKeyDown(KeyCode.F9)) diagnostics.SetVerbose(!Log.Verbose);
             if (Input.GetKeyDown(KeyCode.F10)) diagnostics.SaveReport();
@@ -425,6 +430,7 @@ namespace SolastaCoop
         private void OnGUI()
         {
             if (TravelShare.Capturing) return;
+            lobbyPartyOrder.Draw();
             travelShare.Draw();
             if (textStyle == null)
             {

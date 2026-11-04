@@ -30,6 +30,7 @@ namespace SolastaCoop
         internal string LootStatus = "Loot mirror not sampled yet.";
         internal string FollowStatus = "Auto-follow not sampled yet.";
         internal string HostMoveStatus = "Host movement channel not sampled yet.";
+        internal string LobbyOrderStatus = "Lobby party order not sampled yet.";
 
         internal RuntimeDiagnostics()
         {
@@ -340,6 +341,7 @@ namespace SolastaCoop
                 text.AppendLine("\nTRAVEL VIEW\n" + TravelStatus);
                 text.AppendLine("\nAUTO-FOLLOW\n" + FollowStatus);
                 text.AppendLine("\nHOST MOVEMENT\n" + HostMoveStatus);
+                text.AppendLine("\nLOBBY PARTY ORDER\n" + LobbyOrderStatus);
                 text.AppendLine("\nLOOT VIEW\n" + LootStatus);
                 text.AppendLine("\nCURRENT RANGE\n" + LatestRange);
                 text.AppendLine("\nOBSERVER HUD\n" + HudStatus);

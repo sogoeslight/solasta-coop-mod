@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.25
+
+- Adds host-controlled party ordering directly above the multiplayer lobby character cards. Select one slot, then another to exchange their positions; select the source again to cancel.
+- Shares the chosen order with guests and later arrivals while preserving native character bindings, player ownership, snapshots and slot/GUID mappings.
+- Carries the arrangement into a new or loaded game through Solasta's existing party-swap method. Later manual in-game ordering is respected.
+- Blocks edits while the lobby is covered by a modal, launching, awaiting a previous update or leaving a room. Restores the native layout when the lobby closes or its roster changes.
+- Adds lobby-order diagnostics and validation of all 24 four-hero permutations, host/guest editing, ownership retention, stale data and the real game swap implementation.
+
 ## 0.1.24
 
 - Starts the F6 travel preview hidden. Guests request screen frames only after enabling the preview.
