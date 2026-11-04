@@ -1,6 +1,8 @@
 name: Upload release to Nexus Mods
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["Windows build and release"]
     types: [completed]
@@ -17,17 +19,22 @@ on:
         required: true
         default: true
         type: boolean
+      description_only:
+        description: "Update page metadata only, never upload the DLL again"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: nexus-upload-${{ inputs.version || github.event.workflow_run.head_sha }}
+  group: nexus-upload-${{ inputs.version || github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
   upload:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '[release v')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[nexus description v')) || (github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '[release v')) }}
     name: Validate and optionally upload DLL archive to Nexus Mods
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -42,6 +49,7 @@ jobs:
         env:
           MANUAL_VERSION: ${{ inputs.version }}
           MANUAL_DRY_RUN: ${{ inputs.dry_run }}
+          MANUAL_DESCRIPTION_ONLY: ${{ inputs.description_only }}
         run: python source/nexus_release_context.py
 
       - name: Check Nexus credentials and version
@@ -66,6 +74,7 @@ jobs:
           fi
 
       - name: Stop if this version already exists on Nexus Mods
+        if: ${{ steps.release.outputs.description_only != 'true' }}
         shell: bash
         env:
           NEXUS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
@@ -123,6 +132,7 @@ jobs:
           fi
 
       - name: Download winhttp.dll from GitHub Release
+        if: ${{ steps.release.outputs.description_only != 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -144,6 +154,7 @@ jobs:
           file winhttp.dll
 
       - name: Package DLL for Nexus Mods
+        if: ${{ steps.release.outputs.description_only != 'true' }}
         shell: bash
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
@@ -162,7 +173,7 @@ jobs:
           echo "Nothing was uploaded to Nexus Mods."
 
       - name: Upload new version to Nexus Mods
-        if: ${{ steps.release.outputs.dry_run == 'false' }}
+        if: ${{ steps.release.outputs.dry_run == 'false' && steps.release.outputs.description_only != 'true' }}
         uses: Nexus-Mods/upload-action@v1.0.0-beta.10
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}

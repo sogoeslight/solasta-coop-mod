@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Update the authorized Nexus mod page via the documented v3 author API."""
 import argparse
+import html
 import json
 import os
 from pathlib import Path
+import re
 import urllib.request
 
 BASE = 'https://api.nexusmods.com/v3'
@@ -11,6 +13,11 @@ MOD_PATH = '/games/solastacrownofthemagister/mods/301'
 SUMMARY = ('Co-op quality-of-life improvements: shared loot and travel, teammate panels, '
            'auto-follow, actual combat and exploration movement speed, empty-loot cleanup, '
            'dialogue voting and pre-dialogue autosaves.')
+
+
+def canonical_description(text):
+    # Nexus stores legacy editor line breaks and HTML entities in its BBCode field.
+    return html.unescape(re.sub(r'\n?<br\s*/?>', '\n', text, flags=re.IGNORECASE)).replace('\r\n', '\n').strip()
 
 
 def request(path, method='GET', body=None):
@@ -46,7 +53,7 @@ def main():
     description = Path('docs/NEXUS_DESCRIPTION.bbcode').read_text(encoding='utf-8')
     request('/mods/' + mod_id, 'PATCH', {'summary': SUMMARY, 'description': description})
     updated = request('/mods/' + mod_id)['data']
-    if updated['description'] != description or updated['version'] != version:
+    if canonical_description(updated['description']) != canonical_description(description) or updated['version'] != version:
         raise ValueError('Nexus description/version readback did not match the published release')
     print(f'Verified Nexus version {version} and exact description readback.')
 

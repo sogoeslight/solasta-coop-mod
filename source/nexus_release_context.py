@@ -9,6 +9,7 @@ import re
 def main():
     event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
     automatic = os.environ['GITHUB_EVENT_NAME'] == 'workflow_run'
+    description_only = False
     if automatic:
         run = event['workflow_run']
         if run['conclusion'] != 'success' or run['head_branch'] != 'main':
@@ -19,10 +20,19 @@ def main():
         version = match[1][1:]
         source_sha = run['head_sha']
         dry_run = False
+    elif os.environ['GITHUB_EVENT_NAME'] == 'push':
+        match = re.search(r'\[nexus description (v\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.-]+)?)\]', event['head_commit']['message'])
+        if not match:
+            raise ValueError('Missing metadata-only publication marker')
+        version = match[1][1:]
+        source_sha = ''
+        dry_run = False
+        description_only = True
     else:
         version = os.environ['MANUAL_VERSION']
         source_sha = ''
         dry_run = os.environ.get('MANUAL_DRY_RUN', 'true').lower() == 'true'
+        description_only = os.environ.get('MANUAL_DESCRIPTION_ONLY', 'false').lower() == 'true'
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.-]+)?', version):
         raise ValueError('Invalid release version')
     notes_file = Path('docs') / f'RELEASE_v{version}.md'
@@ -34,6 +44,7 @@ def main():
         raise ValueError('Invalid release notes delimiter')
     with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
         output.write(f'version={version}\ndry_run={str(dry_run).lower()}\nsource_sha={source_sha}\n')
+        output.write(f'description_only={str(description_only).lower()}\n')
         output.write(f'notes<<{delimiter}\n{notes}\n{delimiter}\n')
     print(f'Release {version}; validation-only={dry_run}; source={source_sha or "manual selection"}')
 
