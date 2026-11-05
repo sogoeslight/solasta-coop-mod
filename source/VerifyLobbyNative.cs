@@ -23,6 +23,21 @@ public static class VerifyLobbyNative
     {
         Assembly plugin = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         Assembly game = Assembly.Load("Assembly-CSharp");
+        Type lobbyType = game.GetType("NewAdventurePanel", true), menuType = game.GetType("MainMenuScreen", true);
+        Check(!game.GetType("GuiScreen", true).IsAssignableFrom(lobbyType) &&
+            menuType.GetProperty("NewAdventurePanel", Flags).PropertyType == lobbyType,
+            "Real lobby is a nested menu subpanel rather than a GuiService screen");
+        object guiService = FormatterServices.GetUninitializedObject(game.GetType("GuiManager", true));
+        IDictionary screens = (IDictionary)Activator.CreateInstance(Field(guiService, "screensByType").FieldType);
+        Set(guiService, "screensByType", screens);
+        object menu = FormatterServices.GetUninitializedObject(menuType), lobby = FormatterServices.GetUninitializedObject(lobbyType);
+        Set(menu, "newAdventurePanel", lobby); screens.Add(menuType, menu);
+        object[] resolveArgs = { guiService, null };
+        object resolved = plugin.GetType("SolastaCoop.LobbyPartyOrder", true).GetMethod("ResolveLobbyPanel", Flags).Invoke(null, resolveArgs);
+        Check(ReferenceEquals(resolved, lobby) && ReferenceEquals(resolveArgs[1], menu),
+            "Actual GuiManager screen registry resolves the MainMenuScreen child lobby");
+        Check(typeof(Delegate).IsAssignableFrom(lobbyType.GetProperty("ActionTaken", Flags).PropertyType),
+            "Real ActionTaken API is an event callback, not a launch flag");
         Type type = game.GetType("GameLocationCharacterManager", true);
         object manager = FormatterServices.GetUninitializedObject(type);
         FieldInfo field = Field(manager, "partyCharacters");

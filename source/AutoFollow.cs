@@ -10,8 +10,9 @@ namespace SolastaCoop
     // Does not teleport, modify pathfinding, or change ownership/network state.
     internal sealed class PartyAutoFollow
     {
-        private const float TickInterval = 0.3f;
+        private const float TickInterval = 0.1f;
         private const float CommandCooldown = 2.5f;
+        private const float HostCommandCooldown = 0.25f;
         private const float DesiredDistance = 1.5f;
         private const float ResumeDistance = 1.9f;
         private const float RecentMovementSeconds = 4.0f;
@@ -73,6 +74,7 @@ namespace SolastaCoop
             lastHostMoveAt = Time.unscaledTime;
             hostMoveVersion++;
             hostWaypointActive = true;
+            nextTick = Math.Min(nextTick, Time.unscaledTime);
             if (!manualLeader) leaderGuid = leader;
             Status = "Host selected destination (" + x + ", " + y + ", " + z + "). Following host command.";
         }
@@ -363,9 +365,10 @@ namespace SolastaCoop
                     int handledVersion;
                     bool firstCommandForWaypoint = followHostCommand &&
                         (!lastHostMoveCommand.TryGetValue(id, out handledVersion) || handledVersion != hostMoveVersion);
+                    float cooldown = firstCommandForWaypoint && autoMoves.ContainsKey(id) ? HostCommandCooldown : CommandCooldown;
                     // Bound commands while the previous request may still be awaiting its network echo.
                     if (lastCommand.TryGetValue(id, out last) &&
-                        Time.unscaledTime - last < CommandCooldown) continue;
+                        Time.unscaledTime - last < cooldown) continue;
                     if (followHostCommand && !firstCommandForWaypoint &&
                         lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < 7f) continue;
                     bool acting = object.Equals(Read.Call(actionService, "IsCharacterActing", actor), true);
@@ -378,7 +381,6 @@ namespace SolastaCoop
                     }
                     // The native MoveCharacter command replaces a walk when enqueue=false. Waiting for
                     // IsCharacterActing to become false prevents following a new destination during long walks.
-                    if (retarget && lastCommand.TryGetValue(id, out last) && Time.unscaledTime - last < CommandCooldown) continue;
                     // Aim only one cell behind the leader. The previous 2-3 cell offset
                     // combined with a 3.25-cell stop threshold made units halt too early.
                     double dx = fx - lx, dz = fz - lz;

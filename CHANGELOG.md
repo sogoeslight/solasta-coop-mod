@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.27
+
+- Fixes missing lobby controls by retrieving NewAdventurePanel through its owning MainMenuScreen. It is a nested menu subpanel, not a registered GuiService screen. New-adventure and save-loading lobby modes use the same corrected path.
+- Places swap controls inside each card below the owner dropdown, scales them with the UI and keeps the native adventure heading clear. No F8 setting is needed.
+- Treats ActionTaken as the callback it is and uses actual visibility, transition and interaction state to guard edits.
+- Reacts immediately to received host destinations and lowers the cooldown for replacing an automatic move from 2.5 seconds to 0.25 seconds. Manual input retains its longer protection period; identical targets remain suppressed.
+- Reduces exploration work by caching world-character discovery and movement members instead of scanning every scene animator five times per second.
+- Caches empty-container eligibility every 0.25 seconds and performs per-frame rendering updates only for eligible empty containers. Disabling the option stops highlight discovery and restores suppressed highlights.
+- Skips lobby-screen lookups in exploration and avoids party enumeration when no order is present or the shared policy is already applied.
+- Adds regressions for the real screen registry, menu visibility, pending manual commands, response timing, cached highlight behavior and avoided party scans. FPS gains still require measurement on the affected PC.
+
 ## 0.1.26
 
 - Uses stable saved hero names for identity in the lobby, remote snapshots and loaded party. Lobby ordering now carries over even when clients display differently filtered names.

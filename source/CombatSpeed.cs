@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using Object = System.Object;
 
@@ -15,6 +16,10 @@ namespace SolastaCoop
         private static float nextScan, playbackFactor = 1f;
         private static bool active;
         private static string lastError = "";
+        private static object explorationLocation;
+        private static UnityEngine.Object[] explorationCharacters = new UnityEngine.Object[0];
+        private static float nextCharacterScan;
+        private static readonly Dictionary<Type, MemberInfo[]> MovementMembers = new Dictionary<Type, MemberInfo[]>();
 
         internal const float DefaultCombatFactor = 1.5f;
         internal const float DefaultExplorationFactor = 1.75f;
@@ -104,24 +109,50 @@ namespace SolastaCoop
 
         private static bool IsMoving(object character)
         {
-            foreach (string property in new[] { "MoveInProgress", "MoveStepInProgress", "MovingToDestination", "Falling", "Jumping", "Climbing", "Dropping" })
-                if (Object.Equals(Read.Get(character, property), true)) return true;
+            if (character == null) return false;
+            Type type = character.GetType();
+            MemberInfo[] members;
+            if (!MovementMembers.TryGetValue(type, out members))
+            {
+                const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                var found = new List<MemberInfo>();
+                foreach (string name in new[] { "MoveInProgress", "MoveStepInProgress", "MovingToDestination", "Falling", "Jumping", "Climbing", "Dropping" })
+                {
+                    PropertyInfo property = type.GetProperty(name, flags);
+                    if (property != null) found.Add(property);
+                    else { FieldInfo field = type.GetField(name, flags); if (field != null) found.Add(field); }
+                }
+                members = found.ToArray(); MovementMembers[type] = members;
+            }
+            foreach (MemberInfo member in members)
+            {
+                PropertyInfo property = member as PropertyInfo;
+                object value = property != null ? property.GetValue(character, null) : ((FieldInfo)member).GetValue(character);
+                if (Object.Equals(value, true)) return true;
+            }
             return false;
         }
 
         private static void AccelerateAnimators()
         {
             bool battle = Read.Get(Read.Type("Gui"), "Battle") != null;
-            Type world = Read.Type("WorldLocationCharacter");
-            foreach (Animator animator in UnityEngine.Object.FindObjectsOfType<Animator>())
+            if (!battle)
             {
-                if (!battle)
+                object current = Read.Get(Read.Type("Gui"), "GameLocation");
+                if (current == null) { explorationCharacters = new UnityEngine.Object[0]; explorationLocation = null; return; }
+                if (!Object.ReferenceEquals(current, explorationLocation) || Time.unscaledTime >= nextCharacterScan)
                 {
-                    Component owner = world == null ? null : animator.GetComponentInParent(world);
-                    if (owner == null || !IsMoving(Read.Get(owner, "GameLocationCharacter"))) continue;
+                    explorationLocation = current;
+                    nextCharacterScan = Time.unscaledTime + 1f;
+                    Type world = Read.Type("WorldLocationCharacter");
+                    explorationCharacters = world == null ? new UnityEngine.Object[0] : UnityEngine.Object.FindObjectsOfType(world);
                 }
-                ApplyAnimator(animator);
+                foreach (UnityEngine.Object owner in explorationCharacters)
+                    if (owner != null && IsMoving(Read.Get(owner, "GameLocationCharacter")))
+                        ApplyAnimator(Read.Get(Read.Get(owner, "GraphicsCharacter"), "Animator") as Animator);
+                return;
             }
+            foreach (Animator animator in UnityEngine.Object.FindObjectsOfType<Animator>()) ApplyAnimator(animator);
         }
 
         private static void AccelerateLegacyAnimations()

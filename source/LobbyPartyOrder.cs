@@ -57,6 +57,8 @@ namespace SolastaCoop
     {
         private const string PropertyKey = "SolastaCoopMod.party-order/1";
         private object room, panel, appliedSession;
+        private object appliedPayload;
+        private int appliedHost;
         private string appliedSignature;
         private float nextPoll, pendingSince, nextErrorLog;
         private string[] roster, order, pending;
@@ -68,6 +70,8 @@ namespace SolastaCoop
         private LayoutGroup[] layouts;
         private bool[] layoutEnabled;
         private int screenWidth, screenHeight;
+        private GUIStyle buttonStyle;
+        private int buttonFontSize;
         private readonly Vector3[] corners = new Vector3[4];
         internal string Status { get; private set; } = "Lobby party order is available to the host.";
 
@@ -81,7 +85,9 @@ namespace SolastaCoop
             get { return object.Equals(Read.Get(Photon, "InRoom"), true) &&
                 object.Equals(Read.Get(Photon, "OfflineMode"), false) && object.Equals(Read.Get(Photon, "IsMasterClient"), true); }
         }
-        private bool CanInteract { get { return !object.Equals(Read.Get(panel, "ActionTaken"), true) &&
+        private bool CanInteract { get { return !object.Equals(Read.Get(panel, "Hiding"), true) &&
+            !object.Equals(Read.Get(panel, "Showing"), true) && !object.Equals(Read.Get(panel, "cancellingSession"), true) &&
+            !object.Equals(Read.Get(panel, "isSessionStateOpening"), true) &&
             !object.Equals(Read.Get(Read.Get(panel, "CanvasGroup"), "interactable"), false); } }
         private object Payload
         {
@@ -98,6 +104,20 @@ namespace SolastaCoop
             return (Read.Get(source, "Name") as string) ?? (Read.Get(character, "Name") as string);
         }
 
+        private static object ResolveLobbyPanel(object guiService, out object mainMenu)
+        {
+            Type screen = Read.Type("MainMenuScreen");
+            mainMenu = screen == null ? null : Read.Call(guiService, "GetScreen", screen);
+            return Read.Get(mainMenu, "NewAdventurePanel");
+        }
+
+        private static bool IsLobbyVisible(object mainMenu, object candidate)
+        {
+            return object.Equals(Read.Get(mainMenu, "Visible"), true) && candidate != null &&
+                object.Equals(Read.Get(candidate, "Visible"), true) && !object.Equals(Read.Get(candidate, "Hiding"), true) &&
+                !object.Equals(Read.Get(candidate, "Showing"), true) && object.Equals(Read.Get(candidate, "MultiplayerMode"), true);
+        }
+
         internal void Tick()
         {
             if (Time.unscaledTime < nextPoll) return;
@@ -110,20 +130,26 @@ namespace SolastaCoop
                     RestoreLayout();
                     room = nextRoom; roster = order = pending = null; selected = null;
                     appliedSession = null; appliedSignature = null;
+                    appliedPayload = null;
                 }
                 if (room == null) { visible = false; return; }
-                Type panelType = Read.Type("NewAdventurePanel");
-                panel = panelType == null ? null : Read.Call(Read.Get(Read.Type("Gui"), "GuiService"), "GetScreen", panelType);
-                bool nextVisible = panel != null && object.Equals(Read.Get(panel, "Visible"), true) &&
-                    !object.Equals(Read.Get(panel, "Hiding"), true) && !object.Equals(Read.Get(panel, "Showing"), true) &&
-                    object.Equals(Read.Get(panel, "MultiplayerMode"), true);
-                if (nextVisible && !visible) { appliedSession = null; appliedSignature = null; }
+                if (!visible && Read.Get(Read.Type("Gui"), "GameLocation") != null)
+                {
+                    nextPoll = Time.unscaledTime + 0.5f;
+                    ApplyInGame();
+                    return;
+                }
+                object mainMenu;
+                panel = ResolveLobbyPanel(Read.Get(Read.Type("Gui"), "GuiService"), out mainMenu);
+                bool nextVisible = IsLobbyVisible(mainMenu, panel);
+                if (nextVisible && !visible) { appliedSession = null; appliedSignature = null; appliedPayload = null; }
                 visible = nextVisible;
                 if (visible) RefreshLobby();
                 else
                 {
                     RestoreLayout();
                     selected = null; pending = null;
+                    Status = panel == null ? "Waiting for the main menu lobby panel." : "Waiting for a visible multiplayer lobby.";
                     ApplyInGame();
                 }
             }
@@ -242,7 +268,6 @@ namespace SolastaCoop
             try
             {
                 GUI.enabled = enabled && CanEdit && CanInteract && pending == null;
-                float top = Screen.height, left = Screen.width, right = 0f;
                 for (int slot = 0; slot < order.Length; slot++)
                 {
                     int original = Array.IndexOf(roster, order[slot]);
@@ -252,18 +277,20 @@ namespace SolastaCoop
                     Canvas canvas = card.GetComponentInParent<Canvas>();
                     if (canvas != null) canvas = canvas.rootCanvas;
                     Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+                    float scale = canvas != null ? Math.Max(0.5f, canvas.scaleFactor) : 1f;
                     Vector2 lower = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
                     Vector2 upper = RectTransformUtility.WorldToScreenPoint(camera, corners[2]);
-                    float width = Math.Min(150f, Math.Abs(upper.x - lower.x) - 4f);
+                    float width = Math.Min(150f * scale, Math.Abs(upper.x - lower.x) - 8f * scale);
                     if (width < 40f) continue;
-                    Rect button = new Rect((lower.x + upper.x - width) / 2f, Math.Max(30f, Screen.height - upper.y - 26f), width, 24f);
-                    top = Math.Min(top, button.y); left = Math.Min(left, button.x); right = Math.Max(right, button.xMax);
+                    // Stay below the native owner dropdown and clear of the adventure heading.
+                    Rect button = new Rect((lower.x + upper.x - width) / 2f, Screen.height - upper.y + 36f * scale, width, 24f * scale);
                     string label = !CanEdit ? "Slot " + (slot + 1) : selected == order[slot] ? "Cancel selection" :
-                        selected == null ? "Move slot " + (slot + 1) : "Swap with " + (slot + 1);
-                    if (GUI.Button(button, label)) SelectSlot(slot);
+                        pending != null ? "Updating order..." : selected == null ? "Move slot " + (slot + 1) : "Swap with " + (slot + 1);
+                    int fontSize = (int)Math.Round(14f * scale);
+                    if (buttonStyle == null || buttonFontSize != fontSize)
+                    { buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = fontSize }; buttonFontSize = fontSize; }
+                    if (GUI.Button(button, new GUIContent(label, Status), buttonStyle)) SelectSlot(slot);
                 }
-                GUI.enabled = enabled;
-                if (right > left) GUI.Box(new Rect(left, Math.Max(2f, top - 28f), right - left, 26f), Status);
             }
             catch (Exception ex) { ReportError(ex); }
             finally { GUI.enabled = enabled; }
@@ -272,14 +299,21 @@ namespace SolastaCoop
         private void ApplyInGame()
         {
             if (Read.Get(Read.Type("Gui"), "GameLocation") == null || Read.Get(Read.Type("Gui"), "Battle") != null) return;
+            object payload = Payload;
+            object[] packet = payload as object[];
+            int host = Host;
+            if (packet == null || packet.Length != 4 || !object.Equals(packet[0], 1) || !object.Equals(packet[1], host)) return;
             object session = Read.Get(Read.Service("ISessionService"), "Session");
+            if (session == null || (object.ReferenceEquals(appliedSession, session) &&
+                object.ReferenceEquals(appliedPayload, payload) && appliedHost == host)) return;
             object characters = Read.Service("IGameLocationCharacterService");
             object[] party = Read.Items(Read.Get(characters, "PartyCharacters")).ToArray();
             string[] names = party.Select(c => CharacterName(Read.Get(c, "RulesetCharacter"))).ToArray();
             string[] desired;
-            if (session == null || !LobbyOrderPolicy.TryRead(Payload, Host, names, out desired)) return;
-            string signature = Host + ":" + string.Join("\n", desired);
-            if (object.ReferenceEquals(appliedSession, session) && appliedSignature == signature) return;
+            if (!LobbyOrderPolicy.TryRead(payload, host, names, out desired)) return;
+            string signature = host + ":" + string.Join("\n", desired);
+            if (object.ReferenceEquals(appliedSession, session) && appliedSignature == signature)
+            { appliedPayload = payload; appliedHost = host; return; }
             MethodInfo swap = characters.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
                 .Single(m => m.Name == "SwapPartyMembers" && m.GetParameters().Length == 2 &&
                     m.GetParameters().All(p => p.ParameterType == typeof(int)));
@@ -288,6 +322,7 @@ namespace SolastaCoop
                 .Select(c => CharacterName(Read.Get(c, "RulesetCharacter"))).ToArray();
             if (!actual.SequenceEqual(desired)) throw new InvalidOperationException("Native party order has not settled yet.");
             appliedSession = session; appliedSignature = signature;
+            appliedPayload = payload; appliedHost = host;
             Status = "Lobby party order applied through native party swaps.";
             Log.Event("core", "INFO", Status);
         }

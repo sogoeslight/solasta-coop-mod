@@ -7,22 +7,46 @@ using System.Reflection;
 
 public interface ISessionService { }
 public interface IGameLocationCharacterService { }
-public static class Gui { public static object GameLocation = new object(), Battle; }
+public static class Gui
+{
+    public static object GameLocation = new object(), Battle;
+    public static readonly LobbyFixtureGuiService GuiService = new LobbyFixtureGuiService();
+}
+public class GuiScreen { public bool Visible = true; }
+public class MenuSubpanel { public bool Visible = true, Hiding, Showing; }
+public sealed class NewAdventurePanel : MenuSubpanel
+{
+    public bool MultiplayerMode = true, LoadingMultiplayerSaveMode, cancellingSession, isSessionStateOpening;
+    public Action ActionTaken;
+    public LobbyFixtureCanvas CanvasGroup = new LobbyFixtureCanvas();
+}
+public sealed class MainMenuScreen : GuiScreen { public NewAdventurePanel NewAdventurePanel { get; set; } = new NewAdventurePanel(); }
+public sealed class LobbyFixtureGuiService
+{
+    public readonly MainMenuScreen Menu = new MainMenuScreen();
+    public int InvalidScreenRequests, ScreenRequests;
+    public object GetScreen(Type type)
+    {
+        ScreenRequests++;
+        if (type == typeof(MainMenuScreen)) return Menu;
+        InvalidScreenRequests++; return null;
+    }
+}
 public sealed class LobbyFixtureCanvas { public bool interactable = true; }
-public sealed class LobbyFixturePanel { public bool ActionTaken; public LobbyFixtureCanvas CanvasGroup = new LobbyFixtureCanvas(); }
 public sealed class LobbyFixtureSession { public object Session = new object(); }
 public sealed class LobbyFixtureHero { public string Name, DisplayName; public ulong Guid; public int Owner, SortIndex; }
 public sealed class LobbyFixtureGuiHero { public LobbyFixtureHero rulesetCharacterHero; public string Name = "Filtered UI name"; }
 public sealed class LobbyFixtureCharacter { public LobbyFixtureHero RulesetCharacter; }
 public sealed class LobbyFixtureCharacters
 {
-    public readonly List<LobbyFixtureCharacter> PartyCharacters = new List<LobbyFixtureCharacter>();
-    public int Swaps;
+    private readonly List<LobbyFixtureCharacter> partyCharacters = new List<LobbyFixtureCharacter>();
+    public List<LobbyFixtureCharacter> PartyCharacters { get { PartyReads++; return partyCharacters; } }
+    public int Swaps, PartyReads;
     public void SwapPartyMembers(int first, int second)
     {
-        PartyCharacters[first].RulesetCharacter.SortIndex = second;
-        PartyCharacters[second].RulesetCharacter.SortIndex = first;
-        PartyCharacters.Sort((a, b) => a.RulesetCharacter.SortIndex.CompareTo(b.RulesetCharacter.SortIndex));
+        partyCharacters[first].RulesetCharacter.SortIndex = second;
+        partyCharacters[second].RulesetCharacter.SortIndex = first;
+        partyCharacters.Sort((a, b) => a.RulesetCharacter.SortIndex.CompareTo(b.RulesetCharacter.SortIndex));
         Swaps++;
     }
 }
@@ -104,13 +128,35 @@ public static class VerifyLobbyOrder
             RulesetCharacter = new LobbyFixtureHero { Name = Names[i], Guid = (ulong)i + 100, Owner = i < 2 ? 1 : 2, SortIndex = i } });
         object instance = Activator.CreateInstance(adapter, true);
         Set(instance, "room", Photon.Pun.PhotonNetwork.CurrentRoom); Set(instance, "visible", true);
-        Set(instance, "panel", new LobbyFixturePanel()); Set(instance, "roster", (string[])Names.Clone()); Set(instance, "order", (string[])Names.Clone());
+        var panel = new NewAdventurePanel(); Gui.GuiService.Menu.NewAdventurePanel = panel; Gui.GuiService.Menu.Visible = true;
+        Set(instance, "panel", panel); Set(instance, "roster", (string[])Names.Clone()); Set(instance, "order", (string[])Names.Clone());
+        ServiceRepository.Characters.PartyReads = 0;
         return instance;
     }
     public static int Main(string[] args)
     {
         var plugin = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         policy = plugin.GetType("SolastaCoop.LobbyOrderPolicy", true); adapter = plugin.GetType("SolastaCoop.LobbyPartyOrder", true);
+        object screenProbe = Fresh(); Gui.GameLocation = null; Call(screenProbe, "Tick");
+        Check((bool)Get(screenProbe, "visible") && ReferenceEquals(Get(screenProbe, "panel"), Gui.GuiService.Menu.NewAdventurePanel) &&
+            Gui.GuiService.InvalidScreenRequests == 0, "Lobby is resolved through MainMenuScreen, never as a standalone registered screen");
+        Gui.GuiService.Menu.NewAdventurePanel.LoadingMultiplayerSaveMode = true;
+        Set(screenProbe, "nextPoll", 0f); Call(screenProbe, "Tick");
+        Check((bool)Get(screenProbe, "visible"), "The same nested panel is detected in save-loading lobby mode");
+        Gui.GuiService.Menu.Visible = false;
+        Set(screenProbe, "nextPoll", 0f); Call(screenProbe, "Tick");
+        Check(!(bool)Get(screenProbe, "visible"), "A hidden main menu cannot leave its child lobby controls visible in-game");
+        Gui.GuiService.Menu.Visible = true; Gui.GuiService.Menu.NewAdventurePanel.Hiding = true;
+        Set(screenProbe, "nextPoll", 0f); Call(screenProbe, "Tick");
+        Check(!(bool)Get(screenProbe, "visible"), "Closing the nested lobby removes its controls");
+        Gui.GuiService.Menu.NewAdventurePanel.Hiding = false; Gui.GuiService.Menu.NewAdventurePanel.MultiplayerMode = false;
+        Set(screenProbe, "nextPoll", 0f); Call(screenProbe, "Tick");
+        Check(!(bool)Get(screenProbe, "visible"), "Single-player adventure setup does not expose multiplayer swap controls");
+        object noPolicy = Fresh(); Set(noPolicy, "visible", false); Gui.GuiService.Menu.Visible = false;
+        int screenReads = Gui.GuiService.ScreenRequests;
+        Call(noPolicy, "Tick"); Call(noPolicy, "ApplyInGame");
+        Check(ServiceRepository.Characters.PartyReads == 0 && Gui.GuiService.ScreenRequests == screenReads,
+            "Exploration without a lobby-order policy performs no lobby-screen or party enumeration");
         string[] desired = { "Paladin", "Wizard", "Warlock", "Ranger" }, parsed;
         Check(Read(Packet(Names, desired), 1, Names, out parsed) && parsed.SequenceEqual(desired), "Shared order accepts the current host and exact hero membership");
         parsed[0] = "changed";
@@ -154,11 +200,13 @@ public static class VerifyLobbyOrder
         Check(!(bool)Call(guest, "Publish", (object)desired) && room.Writes == 1, "Guests can read the shared order but cannot edit it");
 
         Photon.Pun.PhotonNetwork.IsMasterClient = true;
-        object blocked = Fresh(); ((LobbyFixturePanel)Get(blocked, "panel")).CanvasGroup.interactable = false;
+        object blocked = Fresh(); ((NewAdventurePanel)Get(blocked, "panel")).CanvasGroup.interactable = false;
         Check(!(bool)Call(blocked, "Publish", (object)desired), "A native modal blocking the lobby also blocks swap controls");
-        ((LobbyFixturePanel)Get(blocked, "panel")).CanvasGroup.interactable = true;
-        ((LobbyFixturePanel)Get(blocked, "panel")).ActionTaken = true;
+        ((NewAdventurePanel)Get(blocked, "panel")).CanvasGroup.interactable = true;
+        ((NewAdventurePanel)Get(blocked, "panel")).Hiding = true;
         Check(!(bool)Call(blocked, "Publish", (object)desired), "Launching a game closes the edit window");
+        object callback = Fresh(); ((NewAdventurePanel)Get(callback, "panel")).ActionTaken = () => { };
+        Check((bool)Call(callback, "Publish", (object)desired), "The native ActionTaken callback is not mistaken for a launching-state boolean");
         object failed = Fresh(); Photon.Pun.PhotonNetwork.CurrentRoom.Reject = true;
         Check(!(bool)Call(failed, "Publish", (object)desired) && Get(failed, "pending") == null,
             "Rejected publishing creates no optimistic shared or pending order");
@@ -176,8 +224,10 @@ public static class VerifyLobbyOrder
                 heroes.Contains(c.RulesetCharacter) && owners[c.RulesetCharacter.Guid] == c.RulesetCharacter.Owner),
             "Loaded party order uses native swaps while preserving hero instances, GUIDs and owners");
         ServiceRepository.Characters.SwapPartyMembers(0, 1); int swaps = ServiceRepository.Characters.Swaps;
+        int reads = ServiceRepository.Characters.PartyReads;
         Call(loaded, "ApplyInGame"); Gui.GameLocation = new object(); Call(loaded, "ApplyInGame");
-        Check(ServiceRepository.Characters.Swaps == swaps, "Later manual in-game ordering and location changes are not overwritten");
+        Check(ServiceRepository.Characters.Swaps == swaps && ServiceRepository.Characters.PartyReads == reads,
+            "Applied policies skip further party scans and preserve later manual ordering across locations");
         ServiceRepository.Session.Session = new object(); Call(loaded, "ApplyInGame");
         Check(ServiceRepository.Characters.PartyCharacters.Select(c => c.RulesetCharacter.Name).SequenceEqual(desired),
             "A newly loaded session can apply the lobby order again");

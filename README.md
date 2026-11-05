@@ -2,13 +2,13 @@
 
 Quality-of-life improvements for [Solasta: Crown of the Magister](https://store.steampowered.com/app/1096530/Solasta_Crown_of_the_Magister/) co-op. Configure the mod with **F8**.
 
-**Version 0.1.26** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
+**Version 0.1.27** | Windows x64 | [GitHub download](https://github.com/sogoeslight/solasta-coop-mod/releases/latest) | [Nexus Mods](https://www.nexusmods.com/solastacrownofthemagister/mods/301)
 
 ## Features
 
 | Feature | What it does | Control |
 | --- | --- | --- |
-| Lobby party order | Swaps hero positions for the room and carries the order into the game, preserving hero ownership | Host controls above the lobby character cards |
+| Lobby party order | Swaps hero positions for the room and carries the order into the game, preserving hero ownership | On each lobby card, below the owner dropdown |
 | Combat speed | Accelerates actual movement, movement waits, animations and VFX | F8 → Speed, ×1–×3, default ×1.5 |
 | Exploration speed | Accelerates character movement around locations; cinematic movement keeps native timing | F8 → Speed, ×1–×3, default ×1.75 |
 | Dialogue votes | Vanilla, follow the host without guest clicks, or equal votes with a random tie-break (50/50 for two different votes) | F8 → Dialogue, default Follow host |
@@ -33,7 +33,7 @@ Version 0.1.24 starts the dialogue preference with **Follow host** once, includi
 
 Dialogue checkpoints precede a conversation. The game does not restore an individual choice or roll inside an active dialogue. Scripted scenes that forbid saving are skipped. Unopened containers stay highlighted; looting and other interactions remain available when empty highlights are hidden.
 
-In a multiplayer lobby, select all heroes first. The host clicks **Move slot N** above one character card, then **Swap with M** above another. Clicking the selected slot again cancels. Guests see the same arrangement, and each hero stays with the same player. The order carries into a new or loaded game through native party sorting; subsequent manual in-game reordering remains available.
+In a multiplayer lobby, select all heroes first. The host clicks **Move slot N** on one character card, below the owner dropdown, then **Swap with M** on another. Clicking the selected slot again cancels. No F8 toggle is required. Guests see the same arrangement, and each hero stays with the same player. The order carries into a new or loaded game through native party sorting; subsequent manual in-game reordering remains available.
 
 ## Installation
 

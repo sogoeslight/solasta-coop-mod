@@ -91,6 +91,8 @@ public static class VerifyApi
             "Selection service.HoveredCharacters");
         Check(type("GameLocationCharacter").GetProperty("LocationPosition", Flags) != null, "Character.LocationPosition");
         Check(type("NewAdventurePanel").GetField("characterSessionPlatesTable", Flags) != null &&
+            !type("GuiScreen").IsAssignableFrom(type("NewAdventurePanel")) &&
+            type("MainMenuScreen").GetProperty("NewAdventurePanel", Flags).PropertyType == type("NewAdventurePanel") &&
             type("NewAdventurePanel").GetProperty("MultiplayerMode", Flags) != null &&
             type("CharacterPlateSession").GetProperty("GuiCharacter", Flags) != null &&
             type("GuiCharacter").GetProperty("Name", Flags) != null, "Native lobby character table and distinct hero names");

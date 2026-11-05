@@ -64,6 +64,7 @@ public sealed class FollowCommand
     public FollowCharacter Actor;
     public TA.int3 Target;
     public bool Enqueue;
+    public float When;
 }
 public sealed class FollowCommands : ICommandService
 {
@@ -74,7 +75,7 @@ public sealed class FollowCommands : ICommandService
         FollowStance stance, Action done = null, bool enqueue = false, bool autoOrientation = false)
     {
         if (FailNext) { FailNext = false; throw new InvalidOperationException("Fixture transient command failure"); }
-        Sent.Add(new FollowCommand { Actor = actor, Target = target, Enqueue = enqueue });
+        Sent.Add(new FollowCommand { Actor = actor, Target = target, Enqueue = enqueue, When = Time.unscaledTime });
         if (!DelayEcho)
         {
             actor.DestinationPosition = target;
@@ -160,6 +161,12 @@ public static class VerifyAutoFollow
     {
         plugin = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         followerType = plugin.GetType("SolastaCoop.PartyAutoFollow", true);
+        Fresh(); var moving = plugin.GetType("SolastaCoop.CombatSpeed", true).GetMethod("IsMoving", Flags);
+        Check(!(bool)moving.Invoke(null, new object[] { local }), "Cached exploration movement readers recognize idle heroes");
+        local.MovingToDestination = true;
+        Check((bool)moving.Invoke(null, new object[] { local }), "Cached movement readers detect a newly started walk");
+        local.MovingToDestination = false;
+        Check(!(bool)moving.Invoke(null, new object[] { local }), "Cached member lookup does not cache stale movement values");
         Fresh(); Waypoint(20); Tick(10f);
         Check(ServiceRepository.Commands.Sent.Count == 2 && ServiceRepository.Commands.Sent.All(c => c.Actor.RulesetCharacter.Owner == 2 && !c.Enqueue),
             "Guest issues native replacement moves only for its two locally owned heroes");
@@ -208,9 +215,16 @@ public static class VerifyAutoFollow
         Check(LocalCommands == 1 && ServiceRepository.Commands.Sent.First(c => c.Actor == local).Target.y == 3,
             "A leader above the same grid cell is not mistaken for a nearby follower on the same floor");
 
-        Fresh(); ServiceRepository.Commands.DelayEcho = true; Waypoint(20); Tick(10f); Waypoint(30); Tick(11f);
+        Fresh(); ServiceRepository.Commands.DelayEcho = true; Waypoint(20); Tick(10f); TimeAt(10.1f); Waypoint(30); Tick(10.1f);
         Check(LocalCommands == 1, "A new waypoint cannot flood commands before the previous network echo arrives");
-        Tick(13f); Check(LocalCommands == 2, "The bounded pending command is retried after its cooldown");
+        Tick(10.3f); Check(LocalCommands == 2 && ServiceRepository.Commands.Sent.Last(c => c.Actor == local).When <= 10.3f,
+            "The latest host destination can replace a pending automatic move within 0.3 seconds");
+        Fresh(); Waypoint(20); Tick(10f); followerType.GetField("nextTick", Flags).SetValue(follower, 100f);
+        TimeAt(10.3f); Waypoint(30); Tick(10.3f);
+        Check(LocalCommands == 2, "A host waypoint wakes follow immediately instead of waiting for its next scheduled poll");
+        Fresh(); Waypoint(20); Tick(10f); TimeAt(10.1f); Call(follower, "OnManualMove", local);
+        local.Busy = local.MovingToDestination = false; TimeAt(10.4f); Waypoint(30); Tick(10.4f);
+        Check(LocalCommands == 1, "Fast host reactions retain the longer grace period for unacknowledged manual movement");
         Fresh(); ServiceRepository.Commands.FailNext = true; Waypoint(20); Tick(10f);
         Check(Enabled && LocalCommands == 0, "Transient command errors pause rather than permanently disable follow");
         Tick(11f); Check(LocalCommands == 0, "Transient failures respect retry backoff");

@@ -98,6 +98,10 @@ public static class VerifyLoot
         Call("RefreshHighlight", swapper);
         Check(!(bool)Get(swapper, "visible") && (bool)Get(swapper, "wantedVisible"),
             "Real native RefreshVisibility hides opened empty loot and preserves the request");
+        Check((bool)loot.GetMethod("CanHide", Flags).Invoke(null, new[] { swapper }), "Cached highlight eligibility uses the actual opened empty inventory");
+        Call("ApplyHighlight", swapper, true);
+        Check(!(bool)Get(swapper, "visible") && (bool)Get(swapper, "wantedVisible"),
+            "Per-frame cached suppression preserves native state without another inventory walk");
         swapper.GetType().GetMethod("SetVisible").Invoke(swapper, new object[] { true });
         Check((bool)Get(swapper, "visible"), "Original game visibility method remains callable without interception");
         Call("RefreshHighlight", swapper);

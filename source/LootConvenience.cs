@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using Object = System.Object;
@@ -19,8 +20,15 @@ namespace SolastaCoop
         private static ConditionalWeakTable<object, WindowState> windows = new ConditionalWeakTable<object, WindowState>();
         private static readonly HashSet<object> suppressedHighlights = new HashSet<object>();
         private static UnityEngine.Object[] highlightSwappers = new UnityEngine.Object[0];
+        private static UnityEngine.Object[] emptySwappers = new UnityEngine.Object[0];
+        private sealed class HighlightAccess
+        {
+            internal FieldInfo Wanted, Visible, World;
+            internal MethodInfo Refresh;
+        }
+        private static readonly Dictionary<Type, HighlightAccess> HighlightMembers = new Dictionary<Type, HighlightAccess>();
         private static bool installed;
-        private static float nextPoll, nextHighlightPoll;
+        private static float nextPoll, nextHighlightPoll, nextEmptyPoll;
         private static Type swapperType;
         private static object location;
         internal static bool AutoClose { get; private set; } = true;
@@ -70,36 +78,64 @@ namespace SolastaCoop
 
         private static void RefreshHighlight(object swapper)
         {
-            bool wanted = Object.Equals(Read.Get(swapper, "wantedVisible"), true);
-            if (!HideEmpty || !wanted)
+            ApplyHighlight(swapper, HideEmpty && CanHide(swapper));
+        }
+
+        private static FieldInfo HighlightField(Type type, string name)
+        {
+            for (Type current = type; current != null; current = current.BaseType)
+            {
+                FieldInfo field = current.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (field != null) return field;
+            }
+            throw new MissingFieldException(type.Name, name);
+        }
+
+        private static HighlightAccess Access(object swapper)
+        {
+            Type type = swapper.GetType();
+            HighlightAccess access;
+            if (!HighlightMembers.TryGetValue(type, out access))
+            {
+                access = new HighlightAccess { Wanted = HighlightField(type, "wantedVisible"), Visible = HighlightField(type, "visible"),
+                    World = HighlightField(type, "worldGadget"), Refresh = type.GetMethod("RefreshVisibility", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) };
+                if (access.Refresh == null) throw new MissingMethodException(type.Name, "RefreshVisibility");
+                HighlightMembers[type] = access;
+            }
+            return access;
+        }
+
+        private static bool CanHide(object swapper)
+        {
+            object world = Access(swapper).World.GetValue(swapper);
+            object container = Read.Get(Read.Get(world, "GameGadget"), "ItemContainer");
+            return container != null && Object.Equals(Read.Get(container, "HasBeenOpenedOnce"), true) && Empty(container);
+        }
+
+        private static void ApplyHighlight(object swapper, bool empty)
+        {
+            HighlightAccess access = Access(swapper);
+            bool wanted = Object.Equals(access.Wanted.GetValue(swapper), true);
+            if (!HideEmpty || !wanted || !empty)
             {
                 if (suppressedHighlights.Contains(swapper))
                 {
-                    Read.Call(swapper, "RefreshVisibility");
+                    access.Refresh.Invoke(swapper, null);
                     suppressedHighlights.Remove(swapper);
                 }
                 return;
             }
-            object world = Read.Get(swapper, "worldGadget");
-            object container = Read.Get(Read.Get(world, "GameGadget"), "ItemContainer");
-            bool hide = container != null &&
-                Object.Equals(Read.Get(container, "HasBeenOpenedOnce"), true) && Empty(container);
-            if (hide)
+            if (Object.Equals(access.Visible.GetValue(swapper), false))
+            { suppressedHighlights.Add(swapper); return; }
+            // The inventory decision is refreshed periodically; the renderer still suppresses a
+            // renewed native highlight request in LateUpdate so there is no frame of flashing.
+            access.Wanted.SetValue(swapper, false);
+            try
             {
-                // Apply the native renderer update after gameplay updates, preserving its request for later restoration.
-                ObserverHud.SetMember(swapper, "wantedVisible", false);
-                try
-                {
-                    Read.Call(swapper, "RefreshVisibility");
-                    suppressedHighlights.Add(swapper);
-                }
-                finally { ObserverHud.SetMember(swapper, "wantedVisible", wanted); }
+                access.Refresh.Invoke(swapper, null);
+                suppressedHighlights.Add(swapper);
             }
-            else if (suppressedHighlights.Contains(swapper))
-            {
-                Read.Call(swapper, "RefreshVisibility");
-                suppressedHighlights.Remove(swapper);
-            }
+            finally { access.Wanted.SetValue(swapper, wanted); }
         }
 
         internal static void Tick()
@@ -111,8 +147,9 @@ namespace SolastaCoop
                 location = current;
                 windows = new ConditionalWeakTable<object, WindowState>();
                 highlightSwappers = new UnityEngine.Object[0];
+                emptySwappers = new UnityEngine.Object[0];
                 suppressedHighlights.Clear();
-                nextPoll = nextHighlightPoll = 0f;
+                nextPoll = nextHighlightPoll = nextEmptyPoll = 0f;
             }
             if (current == null || Time.unscaledTime < nextPoll) return;
             nextPoll = Time.unscaledTime + 0.1f;
@@ -166,14 +203,39 @@ namespace SolastaCoop
             if (!installed || location == null) return;
             try
             {
+                if (!HideEmpty)
+                {
+                    if (suppressedHighlights.Count > 0)
+                    {
+                        foreach (object swapper in suppressedHighlights.ToArray())
+                            if (!(swapper is UnityEngine.Object) || (UnityEngine.Object)swapper != null) ApplyHighlight(swapper, false);
+                        suppressedHighlights.Clear();
+                    }
+                    if (emptySwappers.Length > 0) emptySwappers = new UnityEngine.Object[0];
+                    nextHighlightPoll = nextEmptyPoll = 0f;
+                    return;
+                }
                 if (Time.unscaledTime >= nextHighlightPoll)
                 {
                     nextHighlightPoll = Time.unscaledTime + 0.5f;
                     highlightSwappers = UnityEngine.Object.FindObjectsOfType(swapperType);
+                    nextEmptyPoll = 0f;
                     suppressedHighlights.RemoveWhere(s => s is UnityEngine.Object && (UnityEngine.Object)s == null);
                 }
-                foreach (UnityEngine.Object swapper in highlightSwappers)
-                    if (swapper != null) RefreshHighlight(swapper);
+                if (Time.unscaledTime >= nextEmptyPoll)
+                {
+                    nextEmptyPoll = Time.unscaledTime + 0.25f;
+                    var empty = new List<UnityEngine.Object>();
+                    foreach (UnityEngine.Object swapper in highlightSwappers)
+                    {
+                        if (swapper == null) continue;
+                        if (CanHide(swapper)) empty.Add(swapper);
+                        else if (suppressedHighlights.Contains(swapper)) ApplyHighlight(swapper, false);
+                    }
+                    emptySwappers = empty.ToArray();
+                }
+                foreach (UnityEngine.Object swapper in emptySwappers)
+                    if (swapper != null) ApplyHighlight(swapper, true);
             }
             catch (Exception ex) { Log.Error("loot", "Refresh empty container highlights", ex); }
         }
